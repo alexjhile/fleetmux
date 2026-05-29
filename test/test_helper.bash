@@ -5,6 +5,11 @@ common_setup() {
     export TEST_DIR
     TEST_DIR="$(mktemp -d)"
 
+    # Scoped git identity so brain tests can commit on machines/CI runners
+    # that have no global git config (avoids "Author identity unknown").
+    export GIT_AUTHOR_NAME="fleetmux-test" GIT_AUTHOR_EMAIL="test@fleetmux.local"
+    export GIT_COMMITTER_NAME="fleetmux-test" GIT_COMMITTER_EMAIL="test@fleetmux.local"
+
     LIB_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/../lib" && pwd)"
     export LIB_DIR
 

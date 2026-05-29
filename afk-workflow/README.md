@@ -69,6 +69,11 @@ afk-workflow/
 
 **Pre-1.0.** The workflow is still being proven in practice; expect rough edges.
 
-## Prior art
+## Prior art & credit
 
-The pipeline is a direct application of matt pocock's skills repo. Read [matt's README](https://github.com/mattpocock/skills) for the philosophy. This repo answers the question "OK now what does that look like applied to my projects?"
+This workflow stands entirely on **[Matt Pocock](https://github.com/mattpocock)'s** work:
+
+- **[Sandcastle](https://www.npmjs.com/package/@ai-hero/sandcastle)** (`@ai-hero/sandcastle`) — the sandboxed autonomous-run harness this workflow drives. The `sandcastle-template/` here is adapted from its scaffold.
+- **[mattpocock/skills](https://github.com/mattpocock/skills)** — the engineering skills (`grill-me`, `to-prd`, `to-issues`, …) that the pipeline applies. Read [matt's README](https://github.com/mattpocock/skills) for the philosophy.
+
+This repo just answers "OK, what does that look like applied to my projects?" — it doesn't redistribute Sandcastle or the skills; you install them per their own instructions ([install.md](docs/install.md)).

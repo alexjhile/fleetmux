@@ -201,6 +201,15 @@ make test
 
 The CLI is pure Bash — each command lives in its own `lib/*.sh` module with an include guard; `fleetmux` is the entry point that sources them. The optional GUI has its own toolchain and tests under [`gui/`](gui/). Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Acknowledgements
+
+fleetmux's AFK / autonomous-run workflow is built on the work of **[Matt Pocock](https://github.com/mattpocock)**:
+
+- **[Sandcastle](https://www.npmjs.com/package/@ai-hero/sandcastle)** (`@ai-hero/sandcastle`) — the sandboxed autonomous-run harness that `fleetmux afk` drives. The template under [`afk-workflow/docs/sandcastle-template/`](afk-workflow/docs/sandcastle-template/) is adapted from Sandcastle's scaffold.
+- **[mattpocock/skills](https://github.com/mattpocock/skills)** — the engineering skills (`grill-me`, `to-prd`, `to-issues`, `tdd`, `triage`, …) that drive the queue-and-drain pipeline.
+
+fleetmux integrates and adapts these tools (installed per their own instructions) — it doesn't redistribute their source. See their repos for the canonical versions and licensing. And of course [Claude Code](https://www.anthropic.com/claude-code), the runtime every session runs on.
+
 ## License
 
 [MIT](LICENSE) © Alex Hile
