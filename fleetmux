@@ -1,0 +1,880 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2059
+# fleetmux — multiplex a fleet of coding-agent sessions from one terminal.
+# Session manager for multiple Claude Code instances across local repos and remote hosts.
+set -euo pipefail
+
+# Resolve symlinks to find actual script location
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_SOURCE" ]]; do
+    SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+    SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+    [[ "$SCRIPT_SOURCE" != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
+
+# Source library modules
+source "${SCRIPT_DIR}/lib/config.sh"
+source "${SCRIPT_DIR}/lib/registry.sh"
+source "${SCRIPT_DIR}/lib/status.sh"
+source "${SCRIPT_DIR}/lib/session.sh"
+source "${SCRIPT_DIR}/lib/dispatch.sh"
+source "${SCRIPT_DIR}/lib/display.sh"
+source "${SCRIPT_DIR}/lib/watch.sh"
+source "${SCRIPT_DIR}/lib/ssh.sh"
+source "${SCRIPT_DIR}/lib/health.sh"
+source "${SCRIPT_DIR}/lib/context.sh"
+source "${SCRIPT_DIR}/lib/sync.sh"
+source "${SCRIPT_DIR}/lib/brain.sh"
+source "${SCRIPT_DIR}/lib/alerts.sh"
+source "${SCRIPT_DIR}/lib/drift.sh"
+source "${SCRIPT_DIR}/lib/working-check.sh"
+source "${SCRIPT_DIR}/lib/dashboard.sh"
+source "${SCRIPT_DIR}/lib/conversation.sh"
+source "${SCRIPT_DIR}/lib/account.sh"
+source "${SCRIPT_DIR}/lib/usage.sh"
+source "${SCRIPT_DIR}/lib/limits.sh"
+source "${SCRIPT_DIR}/lib/model-guard.sh"
+source "${SCRIPT_DIR}/lib/afk.sh"
+
+# ─── Commands ───────────────────────────────────────────────────────────────
+
+cmd_list() {
+    local filter_tag="" filter_type=""
+
+    # Parse flags
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --tag)  filter_tag="$2"; shift 2 ;;
+            --type) filter_type="$2"; shift 2 ;;
+            *) break ;;
+        esac
+    done
+
+    print_header
+
+    local i=1 shown=0 running=0 idle=0 stopped=0
+    while IFS= read -r name; do
+        local type path host desc target state
+        type=$(registry_get_field "$name" "type")
+
+        # Apply type filter
+        if [[ -n "$filter_type" && "$type" != "$filter_type" ]]; then
+            continue
+        fi
+
+        # Apply tag filter
+        if [[ -n "$filter_tag" ]]; then
+            local has_tag
+            has_tag=$(jq -r --arg n "$name" --arg t "$filter_tag" \
+                '.[] | select(.name == $n) | .tags // [] | index($t) // empty' \
+                "$SESSIONS_FILE" 2>/dev/null)
+            [[ -z "$has_tag" ]] && continue
+        fi
+
+        path=$(registry_get_field "$name" "path")
+        host=$(registry_get_field "$name" "host")
+        desc=$(registry_get_field "$name" "description")
+        target=$(get_display_target "$type" "$path" "$host")
+        state=$(detect_session_state "$name")
+
+        print_row "$i" "$name" "$type" "$target" "$state" "$desc"
+        ((i++))
+        ((shown++))
+
+        case "$state" in
+            running) ((running++)) ;;
+            idle)    ((idle++)) ;;
+            stopped) ((stopped++)) ;;
+        esac
+    done < <(registry_list_names)
+
+    print_summary "$shown" "$running" "$idle" "$stopped"
+}
+
+cmd_start() {
+    local name="$1"
+    session_start "$name"
+}
+
+cmd_stop() {
+    local name="$1"
+    session_stop "$name"
+}
+
+cmd_attach() {
+    local name="$1"
+    session_attach "$name"
+}
+
+cmd_run() {
+    local wait_mode=false
+    local timeout=300
+
+    # Parse flags
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --wait)   wait_mode=true; shift ;;
+            --timeout) timeout="$2"; shift 2 ;;
+            *) break ;;
+        esac
+    done
+
+    local name="$1"
+    shift
+    local task="$*"
+    if [[ -z "$task" ]]; then
+        print_error "Usage: fleetmux run [--wait] [--timeout N] <name> \"<task>\""
+        exit 1
+    fi
+
+    if [[ "$wait_mode" == true ]]; then
+        dispatch_interactive_wait "$name" "$task" "$timeout"
+    else
+        dispatch_interactive "$name" "$task"
+    fi
+}
+
+cmd_ssh() {
+    local name="$1"
+    shift
+    local command="$*"
+    if [[ -z "$command" ]]; then
+        # No command — open interactive shell (remote only)
+        direct_shell "$name"
+    else
+        direct_exec "$name" "$command"
+    fi
+}
+
+cmd_watch() {
+    local interval="${1:-3}"
+    run_watch "$interval"
+}
+
+cmd_exec() {
+    local name="$1"
+    shift
+    local task="$*"
+    if [[ -z "$task" ]]; then
+        print_error "Usage: fleetmux exec <name> \"<task>\""
+        exit 1
+    fi
+    dispatch_headless "$name" "$task"
+}
+
+cmd_startall() {
+    session_start_all "$@"
+}
+
+cmd_stopall() {
+    session_stop_all
+}
+
+cmd_status() {
+    echo ""
+    print_info "fleetmux Session Status"
+    echo ""
+
+    print_status_header
+
+    local i=1
+    local running=0 idle=0 stopped=0
+    while IFS= read -r name; do
+        local type path host desc target state last_task
+        type=$(registry_get_field "$name" "type")
+        path=$(registry_get_field "$name" "path")
+        host=$(registry_get_field "$name" "host")
+        desc=$(registry_get_field "$name" "description")
+        target=$(get_display_target "$type" "$path" "$host")
+        state=$(detect_session_state "$name")
+        last_task=$(get_last_task "$name")
+
+        print_status_row "$i" "$name" "$type" "$target" "$state" "$last_task"
+
+        case "$state" in
+            running) ((running++)) ;;
+            idle)    ((idle++)) ;;
+            stopped) ((stopped++)) ;;
+        esac
+        ((i++))
+    done < <(registry_list_names)
+
+    print_summary "$(registry_count)" "$running" "$idle" "$stopped"
+
+    # tmux session info
+    if tmux_session_exists; then
+        local window_count
+        window_count=$(tmux list-windows -t "$AIOS_TMUX_SESSION" 2>/dev/null | wc -l | tr -d ' ')
+        print_info "tmux session '$AIOS_TMUX_SESSION' active with $window_count window(s)"
+    else
+        printf "  ${C_DIM}tmux session '$AIOS_TMUX_SESSION' not running${C_RESET}\n"
+    fi
+    echo ""
+}
+
+cmd_add() {
+    local name="$1"
+    local type="$2"
+    local path="$3"
+    local desc="${4:-}"
+    local host="${5:-}"
+
+    if [[ -z "$name" || -z "$type" || -z "$path" ]]; then
+        print_error "Usage: fleetmux add <name> <type> <path> [description] [host]"
+        exit 1
+    fi
+
+    registry_add_session "$name" "$type" "$path" "$desc" "$host"
+}
+
+cmd_remove() {
+    local name="$1"
+    # Stop session if running
+    if tmux_window_exists "$name"; then
+        session_stop "$name"
+    fi
+    registry_remove_session "$name"
+}
+
+cmd_logs() {
+    local name="$1"
+    local lines="${2:-50}"
+
+    if ! registry_session_exists "$name"; then
+        print_error "Session '$name' not found in registry"
+        exit 1
+    fi
+
+    dispatch_logs "$name" "$lines"
+}
+
+cmd_health() {
+    run_health_check
+}
+
+cmd_context() {
+    local name="$1"
+    run_context "$name"
+}
+
+cmd_sync() {
+    run_sync
+}
+
+cmd_history() {
+    local count=20
+    local filter_session=""
+
+    # Parse args
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --session|-s)
+                filter_session="$2"; shift 2 ;;
+            [0-9]*)
+                count="$1"; shift ;;
+            *)
+                print_error "Usage: fleetmux history [count] [--session <name>]"
+                exit 1 ;;
+        esac
+    done
+
+    if [[ ! -f "$TASKS_FILE" ]] || [[ "$(jq 'length' "$TASKS_FILE")" == "0" ]]; then
+        echo ""
+        print_info "No task history yet. Dispatch some tasks first."
+        echo ""
+        return
+    fi
+
+    echo ""
+    printf "  ${C_BOLD}%-8s %-14s %-5s %-10s %-9s %s${C_RESET}\n" "Time" "Session" "Mode" "Status" "Duration" "Task"
+    echo "  ──────── ────────────── ───── ────────── ───────── ──────────────────────────────────"
+
+    local jq_filter
+    if [[ -n "$filter_session" ]]; then
+        jq_filter="[.[] | select(.session == \"$filter_session\")] | .[:$count]"
+    else
+        jq_filter=".[:$count]"
+    fi
+
+    jq -r "$jq_filter | .[] | [.dispatched_at, .session, .mode, .status, .duration_s, .task] | @tsv" "$TASKS_FILE" | \
+    while IFS=$'\t' read -r dispatched_at session mode status duration_s task; do
+        # Format time as HH:MM
+        local time_str
+        time_str=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$dispatched_at" "+%H:%M" 2>/dev/null || echo "${dispatched_at:11:5}")
+
+        # Format duration
+        local dur_str="-"
+        if [[ -n "$duration_s" && "$duration_s" != "" ]]; then
+            if [[ "$duration_s" -ge 60 ]]; then
+                dur_str="$((duration_s / 60))m $((duration_s % 60))s"
+            elif [[ "$duration_s" -gt 0 ]]; then
+                dur_str="${duration_s}s"
+            fi
+        fi
+
+        # Color status
+        local status_colored
+        case "$status" in
+            completed)  status_colored=$(printf "${C_GREEN}%-10s${C_RESET}" "$status") ;;
+            failed)     status_colored=$(printf "${C_RED}%-10s${C_RESET}" "$status") ;;
+            dispatched) status_colored=$(printf "${C_YELLOW}%-10s${C_RESET}" "$status") ;;
+            *)          status_colored=$(printf "%-10s" "$status") ;;
+        esac
+
+        # Truncate task to 40 chars
+        if [[ ${#task} -gt 40 ]]; then
+            task="${task:0:37}..."
+        fi
+
+        printf "  %-8s %-14s %-5s %b %-9s %s\n" "$time_str" "$session" "$mode" "$status_colored" "$dur_str" "$task"
+    done
+
+    echo ""
+}
+
+cmd_each() {
+    local filter_type="" filter_tag=""
+
+    # Parse flags
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --type) filter_type="$2"; shift 2 ;;
+            --tag)  filter_tag="$2"; shift 2 ;;
+            *) break ;;
+        esac
+    done
+
+    local command="$*"
+    if [[ -z "$command" ]]; then
+        print_error "Usage: fleetmux each [--type local|remote] [--tag <tag>] \"<command>\""
+        exit 1
+    fi
+
+    local pids=() names=() out_files=()
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    while IFS= read -r name; do
+        local type path host
+        type=$(registry_get_field "$name" "type")
+
+        # Apply filters
+        if [[ -n "$filter_type" && "$type" != "$filter_type" ]]; then
+            continue
+        fi
+        if [[ -n "$filter_tag" ]]; then
+            local has_tag
+            has_tag=$(jq -r --arg n "$name" --arg t "$filter_tag" \
+                '.[] | select(.name == $n) | .tags // [] | index($t) // empty' \
+                "$SESSIONS_FILE" 2>/dev/null)
+            [[ -z "$has_tag" ]] && continue
+        fi
+
+        path=$(registry_get_field "$name" "path")
+        host=$(registry_get_field "$name" "host")
+        local out_file="${tmp_dir}/${name}.out"
+
+        # Run in parallel
+        (
+            if [[ "$type" == "remote" ]]; then
+                ssh -n -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$host" \
+                    "cd '${path}' && $command" > "$out_file" 2>&1
+            else
+                (cd "$path" && eval "$command") > "$out_file" 2>&1
+            fi
+        ) &
+        pids+=($!)
+        names+=("$name")
+        out_files+=("$out_file")
+    done < <(registry_list_names)
+
+    # Wait and display results
+    echo ""
+    for i in "${!pids[@]}"; do
+        wait "${pids[$i]}" 2>/dev/null
+        local exit_code=$?
+        local status_icon
+        if [[ $exit_code -eq 0 ]]; then
+            status_icon="${C_GREEN}✓${C_RESET}"
+        else
+            status_icon="${C_RED}✗${C_RESET}"
+        fi
+
+        printf "  %b %-14s " "$status_icon" "${names[$i]}"
+        if [[ -f "${out_files[$i]}" ]]; then
+            # Show first line of output inline
+            local first_line
+            first_line=$(head -1 "${out_files[$i]}" 2>/dev/null | cut -c1-60)
+            printf "%s\n" "$first_line"
+        else
+            printf "\n"
+        fi
+    done
+    echo ""
+
+    rm -rf "$tmp_dir"
+}
+
+cmd_alerts() {
+    run_alerts
+}
+
+cmd_drift() {
+    echo ""
+    print_info "Drift Report — Local vs Remote vs Origin"
+    run_drift "$@"
+}
+
+cmd_conversation() {
+    local name="$1"
+    local limit="${2:-20}"
+    run_conversation "$name" "$limit"
+}
+
+cmd_brain() {
+    local subcmd="${1:-sync}"
+    shift || true
+
+    case "$subcmd" in
+        sync)
+            echo ""
+            print_info "Brain sync — backing up all memory files..."
+            echo ""
+            brain_sync "$@"
+            echo ""
+            ;;
+        commit)
+            echo ""
+            brain_sync --quiet
+            brain_commit "$@"
+            echo ""
+            ;;
+        diff)
+            echo ""
+            brain_diff
+            echo ""
+            ;;
+        *)
+            print_error "Usage: fleetmux brain [sync|commit|diff]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_menu() {
+    show_menu
+}
+
+cmd_dash() {
+    case "${1:-}" in
+        toggle) dash_toggle ;;
+        keys)   install_keybindings; print_info "Keybindings installed: prefix+g (menu), prefix+a (dashboard)" ;;
+        "")     dash_start ;;
+        *)      print_error "Usage: fleetmux dash [toggle|keys]"; exit 1 ;;
+    esac
+}
+
+cmd_account() {
+    local sub="${1:-list}"
+    shift || true
+
+    case "$sub" in
+        list|ls)
+            local names
+            names=$(account_list)
+            if [[ -z "$names" ]]; then
+                echo "No accounts configured."
+                echo "Add one: fleetmux account add <name>"
+                return 0
+            fi
+            printf '%-14s %-30s %-6s %s\n' "NAME" "EMAIL" "TIER" "USED BY"
+            while IFS= read -r name; do
+                local email subscription users
+                email=$(_account_get_meta "$name" email)
+                subscription=$(_account_get_meta "$name" subscription)
+                users=$(jq -r --arg n "$name" '[.[] | select(.account == $n) | .name] | join(",")' "$SESSIONS_FILE" 2>/dev/null)
+                printf '%-14s %-30s %-6s %s\n' \
+                    "$name" \
+                    "${email:-(not detected)}" \
+                    "${subscription:--}" \
+                    "${users:-(none)}"
+            done <<< "$names"
+            ;;
+        add)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux account add <name> [token]"; exit 1; }
+            account_add "$@" && account_sync all
+            ;;
+        remove|rm)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux account remove <name>"; exit 1; }
+            account_remove "$1"
+            ;;
+        rename|mv)
+            [[ -z "${1:-}" || -z "${2:-}" ]] && { print_error "Usage: fleetmux account rename <old> <new>"; exit 1; }
+            account_rename "$1" "$2"
+            ;;
+        show)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux account show <name>"; exit 1; }
+            account_show "$1"
+            ;;
+        set-email|email)
+            [[ -z "${1:-}" || -z "${2:-}" ]] && { print_error "Usage: fleetmux account set-email <name> <email> [tier]"; exit 1; }
+            account_set_meta "$@"
+            ;;
+        limits)
+            case "${1:-report}" in
+                refresh) limits_refresh ;;
+                *)       limits_report ;;
+            esac
+            ;;
+        sync)
+            account_sync "${1:-all}"
+            ;;
+        set)
+            [[ -z "${1:-}" || -z "${2:-}" ]] && { print_error "Usage: fleetmux account set <session> <account>"; exit 1; }
+            account_set_session "$1" "$2"
+            ;;
+        unset)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux account unset <session>"; exit 1; }
+            account_unset_session "$1"
+            ;;
+        *)
+            print_error "Usage: fleetmux account [list|add|remove|rename|show|set-email|sync|set|unset]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_usage() {
+    local sub="${1:-report}"
+    case "$sub" in
+        ""|report)
+            usage_report
+            ;;
+        --refresh|refresh)
+            usage_refresh
+            ;;
+        top)
+            shift
+            usage_top "$@"
+            ;;
+        *)
+            # Treat unknown first arg as a --refresh flag check
+            if [[ "$sub" == --* ]]; then
+                usage_report "$@"
+            else
+                print_error "Usage: fleetmux usage [report|refresh|top [--session NAME] [N]]"
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+cmd_restart() {
+    local name="$1"
+    if ! registry_session_exists "$name"; then
+        print_error "Session '$name' not found"
+        exit 1
+    fi
+    session_stop "$name" >/dev/null 2>&1 || true
+    sleep 1
+    session_start "$name"
+}
+
+cmd_afk() {
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" || -z "${1:-}" ]]; then
+        afk_help
+        return 0
+    fi
+
+    # Pull flags out of the arg list so they can appear before or after the subject.
+    local dry_run=false
+    local concurrency=""
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dry-run)     dry_run=true; shift ;;
+            --concurrency) concurrency="$2"; shift 2 ;;
+            --help|-h)     afk_help; return 0 ;;
+            *)             args+=("$1"); shift ;;
+        esac
+    done
+
+    if [[ ${#args[@]} -eq 0 ]]; then
+        afk_help
+        return 0
+    fi
+
+    local subject="${args[0]}"
+    if [[ "$subject" == "all" ]]; then
+        local all_args=()
+        [[ "$dry_run" == true ]] && all_args+=(--dry-run)
+        [[ -n "$concurrency" ]] && all_args+=(--concurrency "$concurrency")
+        # bash 3.2 + set -u: empty-array deref fails. Guard explicitly.
+        if [[ ${#all_args[@]} -gt 0 ]]; then
+            afk_all "${all_args[@]}"
+        else
+            afk_all
+        fi
+        return $?
+    fi
+
+    # Single-session form: <session> [<issue#>]
+    local session="$subject"
+    local issue="${args[1]:-}"
+    if [[ "$dry_run" == true ]]; then
+        if [[ -n "$issue" ]]; then
+            afk_run --dry-run "$session" "$issue"
+        else
+            afk_run --dry-run "$session"
+        fi
+    else
+        if [[ -n "$issue" ]]; then
+            afk_run "$session" "$issue"
+        else
+            afk_run "$session"
+        fi
+    fi
+}
+
+cmd_help() {
+    cat <<'EOF'
+fleetmux — multiplex a fleet of coding-agent sessions across local + remote hosts
+
+Usage: fleetmux <command> [arguments]
+
+Session Management:
+  list                        Show all sessions with status
+  start <name>                Start a session (creates tmux window + launches claude)
+  stop <name>                 Stop a session (kills tmux window)
+  attach <name>               Switch to a session's tmux window
+  startall                    Start all sessions
+  stopall                     Stop all sessions and kill tmux session
+
+Task Dispatch:
+  run <name> "<task>"         Send task to a running interactive session
+  run --wait <name> "<task>"  Send task and wait for completion, return output
+  exec <name> "<task>"        Run headless (claude -p) in session directory
+  ssh <name> "<command>"      Run shell command directly (no Claude session needed)
+  ssh <name>                  Open interactive SSH shell (remote sessions)
+  logs <name> [lines]         Show recent output from a session
+
+Monitoring:
+  status                      Session status + git info + last task
+  health                      Remote host health (disk/mem/uptime) + local git status
+  context <name>              Read session's Claude memory + git + task history
+  conversation <name> [N]    Read last N messages from session's Claude chat (default 20)
+  sync                        Auto-detect direct work across all sessions and pull context
+  history [count]             Show recent task history (default: last 20)
+  history --session <name>    Filter history by session
+  watch [interval]            Live dashboard (refreshes every N seconds, default 3)
+  alerts                      Check for remote-host issues, stuck tasks, resource warnings
+
+Batch:
+  each "<command>"            Run command across all sessions (parallel)
+  each --type remote "<cmd>"  Filter by type (local/remote)
+  each --tag vps "<cmd>"      Filter by tag
+
+Drift Detection:
+  drift                       Compare local vs remote vs origin for all dual-location sessions
+  drift --fix                 Auto-pull local clones behind origin, push remote if behind
+
+Dashboard:
+  menu                        Interactive tmux session picker (prefix+g)
+  dash                        Split-pane live status display (prefix+a to toggle)
+  dash toggle                 Toggle the dashboard pane on/off
+  dash keys                   Install tmux keybindings (prefix+g, prefix+a)
+
+Brain (persistent memory backup):
+  brain sync                  Sync all memory files into brain/
+  brain commit                Sync + commit to git
+  brain commit --push         Sync + commit + push to the git remote
+  brain diff                  Show brain changes since last commit
+
+Registry:
+  add <name> <type> <path> [desc] [host]   Add a new session
+  remove <name>               Remove a session from registry
+  restart <name>              Stop + start a session (applies config changes)
+
+Account Profiles (multi-account OAuth):
+  account list                        List accounts with email/tier/sessions
+  account add <name>                  Add a new account (paste token from 'claude setup-token')
+  account remove <name>               Remove an account (must not be in use)
+  account rename <old> <new>          Rename an account (updates refs)
+  account show <name>                 Show account metadata
+  account set-email <name> <email> [tier]  Set display email + subscription tier
+  account sync [all|local|remote]     Push wrapper + tokens to local/remote hosts
+  account set <session> <account>     Assign account to a session
+  account unset <session>             Clear session's account (use default)
+
+Token Usage:
+  usage                       Show token consumption per session (cached)
+  usage refresh               Re-parse JSONL files + rebuild cache
+  usage top [N] [--session S] Top N highest-burn conversations with first prompt
+
+AFK (overnight queue drain — wraps Sandcastle parallel-planner):
+  afk <session>               Drain ready-for-agent queue for one session
+  afk <session> <issue#>      Run one specific issue (debug mode)
+  afk all                     Broadcast across every afk_ready session
+  afk all --concurrency N     Cap parallel drains at N (default 3)
+  afk --dry-run <session>     Print the command that would be invoked
+
+Help:
+  help                        Show this help message
+
+Examples:
+  fleetmux list               # See all sessions at a glance
+  fleetmux start web          # SSH to a remote host, launch Claude Code
+  fleetmux run web "run the weekly report"
+  fleetmux run --wait api "run the test suite"
+  fleetmux ssh web "npm test"
+  fleetmux ssh worker "git log --oneline -5"
+  fleetmux exec api "analyze the latest error logs"
+  fleetmux watch              # Live dashboard
+  fleetmux watch 5            # Refresh every 5 seconds
+
+EOF
+}
+
+# ─── Main ───────────────────────────────────────────────────────────────────
+
+main() {
+    local command="${1:-help}"
+    shift || true
+
+    case "$command" in
+        list|ls)
+            cmd_list "$@"
+            ;;
+        start)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux start <name>"; exit 1; }
+            cmd_start "$1"
+            ;;
+        restart)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux restart <name>"; exit 1; }
+            cmd_restart "$1"
+            ;;
+        model-guard|mg)
+            case "${1:-status}" in
+                status)  model_guard_status ;;
+                on)      model_guard_toggle on ;;
+                off)     model_guard_toggle off ;;
+                clear)   model_guard_clear ;;
+                eval)    model_guard_evaluate ;;
+                *)       print_error "Usage: fleetmux model-guard [status|on|off|clear|eval]"; exit 1 ;;
+            esac
+            ;;
+        account)
+            cmd_account "$@"
+            ;;
+        usage)
+            cmd_usage "$@"
+            ;;
+        stop|kill)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux stop <name>"; exit 1; }
+            cmd_stop "$1"
+            ;;
+        attach|a)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux attach <name>"; exit 1; }
+            cmd_attach "$1"
+            ;;
+        run)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux run <name> \"<task>\""; exit 1; }
+            cmd_run "$@"
+            ;;
+        exec)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux exec <name> \"<task>\""; exit 1; }
+            cmd_exec "$@"
+            ;;
+        startall)
+            cmd_startall "$@"
+            ;;
+        stopall|killall)
+            cmd_stopall
+            ;;
+        status|st)
+            cmd_status
+            ;;
+        add)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux add <name> <type> <path> [desc] [host]"; exit 1; }
+            cmd_add "$@"
+            ;;
+        remove|rm)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux remove <name>"; exit 1; }
+            cmd_remove "$1"
+            ;;
+        ssh)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux ssh <name> [command]"; exit 1; }
+            cmd_ssh "$@"
+            ;;
+        watch|w)
+            cmd_watch "$@"
+            ;;
+        history|hist)
+            cmd_history "$@"
+            ;;
+        health)
+            cmd_health
+            ;;
+        context|ctx)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux context <name>"; exit 1; }
+            cmd_context "$1"
+            ;;
+        sync)
+            cmd_sync
+            ;;
+        brain)
+            cmd_brain "$@"
+            ;;
+        alerts)
+            cmd_alerts
+            ;;
+        drift)
+            cmd_drift "$@"
+            ;;
+        each)
+            cmd_each "$@"
+            ;;
+        menu)
+            cmd_menu
+            ;;
+        dash|dashboard)
+            cmd_dash "$@"
+            ;;
+        logs|log)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux logs <name> [lines]"; exit 1; }
+            cmd_logs "$@"
+            ;;
+        conversation|convo|chat)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux conversation <name> [limit]"; exit 1; }
+            cmd_conversation "$@"
+            ;;
+        working-check)
+            if [[ "${1:-}" == "--all" ]]; then
+                working_check_all
+            elif [[ -n "${1:-}" ]]; then
+                working_check "$1"
+            else
+                print_error "Usage: fleetmux working-check {<session>|--all}"
+                exit 1
+            fi
+            ;;
+        working-bootstrap)
+            [[ -z "${1:-}" ]] && { print_error "Usage: fleetmux working-bootstrap <session>"; exit 1; }
+            working_bootstrap "$1"
+            ;;
+        afk)
+            cmd_afk "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo "Run 'fleetmux help' for usage information."
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

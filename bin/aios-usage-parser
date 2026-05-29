@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# aios-usage-parser — read Claude Code JSONL files under
+# $HOME/.claude/projects/<slug>/ and emit aggregated usage as JSON.
+#
+# Usage: aios-usage-parser <slug>
+#
+# Deployed to every fleetmux-managed machine by `fleetmux account sync`.
+
+set -e
+
+slug="${1:-}"
+if [[ -z "$slug" ]]; then
+    echo 'Error: slug required' >&2
+    exit 1
+fi
+
+dir="${HOME}/.claude/projects/${slug}"
+zero='{"turns":0,"input_tokens":0,"cache_creation_tokens":0,"cache_read_tokens":0,"output_tokens":0,"total_tokens":0,"tokens_5m":0,"tokens_15m":0,"tokens_24h":0,"tokens_7d":0,"turns_5m":0,"turns_15m":0,"turns_24h":0,"turns_7d":0,"conversations":0,"last_activity":null}'
+
+if [[ ! -d "$dir" ]]; then
+    echo "$zero"
+    exit 0
+fi
+
+convs=$(find "$dir" -maxdepth 2 -name '*.jsonl' -type f -not -path '*subagents*' 2>/dev/null | wc -l | tr -d ' ')
+
+# Cross-platform last-activity: GNU find uses -printf, BSD find doesn't.
+if find "$dir" -maxdepth 0 -printf '' 2>/dev/null; then
+    last=$(find "$dir" -maxdepth 2 -name '*.jsonl' -type f -not -path '*subagents*' -printf '%T@\n' 2>/dev/null |
+           sort -rn | head -1 | awk '{print int($1)}')
+else
+    last=$(find "$dir" -maxdepth 2 -name '*.jsonl' -type f -not -path '*subagents*' -print0 2>/dev/null |
+           xargs -0 stat -f '%m' 2>/dev/null | sort -rn | head -1)
+fi
+[[ -z "$last" ]] && last=0
+
+if [[ "$convs" == "0" ]]; then
+    echo "$zero"
+    exit 0
+fi
+
+# Per-conversation breakdown: for each jsonl file, extract top-level metadata +
+# aggregate its own token stats. Emitted as sorted top-N array in the output.
+tmp_convs=$(mktemp)
+trap 'rm -f "$tmp_convs"' EXIT
+find "$dir" -maxdepth 2 -name '*.jsonl' -type f -not -path '*subagents*' 2>/dev/null |
+while IFS= read -r file; do
+    id=$(basename "$file" .jsonl)
+    jq -s --arg id "$id" '
+      def normalize_ts: . | sub("\\.[0-9]+Z$"; "Z") | sub("\\.[0-9]+\\+"; "+");
+      def ts_epoch: try (normalize_ts | fromdateiso8601) catch 0;
+      # Helper: extract plain text from a user message content, or null
+      def user_text: .message.content as $c |
+        if ($c|type) == "string" then $c
+        elif ($c|type) == "array" and ($c|length) > 0 and $c[0].type == "text" then $c[0].text
+        else null end;
+      # Find the first REAL user prompt — skip tool results, interrupts, caveats, sidechain.
+      def is_meta_text: (. // "") | (
+        startswith("[Request interrupted") or
+        startswith("[tool_use") or
+        startswith("<local-command") or
+        startswith("<command-") or
+        startswith("<system-reminder")
+      );
+      (map(select(
+        type=="object" and
+        .type=="user" and
+        ((.isSidechain // false) == false) and
+        (user_text // null) != null and
+        (user_text | is_meta_text | not)
+      )) | first) as $first_user |
+      (map(select(type=="object" and .type=="assistant" and .message.usage != null))) as $assistants |
+      (($first_user | user_text) // "") as $first_prompt |
+      (map(select(type=="object" and (.cwd // null) != null)) | first | .cwd // null) as $cwd |
+      (map(select(type=="object" and (.gitBranch // null) != null)) | first | .gitBranch // null) as $branch |
+      (map(select(type=="object" and (.version // null) != null)) | first | .version // null) as $version |
+      ($assistants | map(.message.usage)) as $usage |
+      ([$usage[] | .input_tokens // 0] | add // 0) as $inp |
+      ([$usage[] | .cache_creation_input_tokens // 0] | add // 0) as $cw |
+      ([$usage[] | .cache_read_input_tokens // 0] | add // 0) as $cr |
+      ([$usage[] | .output_tokens // 0] | add // 0) as $out |
+      # Ephemeral 5m vs 1h cache creation split (different pricing)
+      ([$usage[] | .cache_creation.ephemeral_5m_input_tokens // 0] | add // 0) as $cw5m |
+      ([$usage[] | .cache_creation.ephemeral_1h_input_tokens // 0] | add // 0) as $cw1h |
+      # Model detection — take the most common model name across assistant turns
+      (($assistants | map(.message.model // null) | map(select(. != null)) | .[0]) // null) as $model |
+      {
+        id: $id,
+        first_prompt: ($first_prompt | tostring | .[0:160]),
+        cwd: $cwd,
+        gitBranch: $branch,
+        version: $version,
+        model: $model,
+        user_turns: (map(select(type=="object" and .type=="user" and (.isSidechain // false) == false)) | length),
+        assistant_turns: ($assistants | length),
+        input_tokens: $inp,
+        cache_creation_tokens: $cw,
+        cache_creation_5m: $cw5m,
+        cache_creation_1h: $cw1h,
+        cache_read_tokens: $cr,
+        output_tokens: $out,
+        total_tokens: ($inp + $cw + $cr + $out),
+        effective_tokens: ($inp + $cw + $out),
+        first_ts: (map(select(type=="object" and .timestamp != null)) | first | .timestamp // null),
+        last_ts: (map(select(type=="object" and .timestamp != null)) | last | .timestamp // null),
+        is_headless: (($assistants | length) <= 1 and (map(select(type=="object" and .type=="user" and (.isSidechain // false) == false)) | length) <= 1)
+      }
+    ' "$file" 2>/dev/null
+done > "$tmp_convs"
+
+find "$dir" -maxdepth 2 -name '*.jsonl' -type f -not -path '*subagents*' -print0 2>/dev/null |
+xargs -0 cat 2>/dev/null |
+jq -n --argjson convs "$convs" --argjson last "$last" --slurpfile conversations "$tmp_convs" '
+  def sum_usage(arr):
+    {
+      turns: (arr | length),
+      input_tokens: ([arr[] | .message.usage.input_tokens // 0] | add // 0),
+      cache_creation_tokens: ([arr[] | .message.usage.cache_creation_input_tokens // 0] | add // 0),
+      cache_read_tokens: ([arr[] | .message.usage.cache_read_input_tokens // 0] | add // 0),
+      output_tokens: ([arr[] | .message.usage.output_tokens // 0] | add // 0)
+    } |
+    . + {total_tokens: (.input_tokens + .cache_creation_tokens + .cache_read_tokens + .output_tokens)};
+  def normalize_ts: . | sub("\\.[0-9]+Z$"; "Z") | sub("\\.[0-9]+\\+"; "+");
+  def ts_epoch: try (normalize_ts | fromdateiso8601) catch 0;
+  def zeros(n): [range(n) | 0];
+
+  [inputs? // empty | select((type=="object") and (.type=="assistant") and (.message.usage != null))] as $all |
+  (now - 300) as $cutoff_5m |
+  (now - 900) as $cutoff_15m |
+  (now - 86400) as $cutoff_24h |
+  (now - 172800) as $cutoff_48h |
+  (now - 604800) as $cutoff_7d |
+  ($all | map(select((.timestamp // "1970-01-01T00:00:00Z") | ts_epoch > $cutoff_5m))) as $d5m |
+  ($all | map(select((.timestamp // "1970-01-01T00:00:00Z") | ts_epoch > $cutoff_15m))) as $d15m |
+  ($all | map(select((.timestamp // "1970-01-01T00:00:00Z") | ts_epoch > $cutoff_24h))) as $d24 |
+  ($all | map(select((.timestamp // "1970-01-01T00:00:00Z") | ts_epoch > $cutoff_48h))) as $d48 |
+  ($all | map(select((.timestamp // "1970-01-01T00:00:00Z") | ts_epoch > $cutoff_7d))) as $d7 |
+
+  # Extract (ts, total_tok, effective_tok) events for bucketing.
+  # effective_tok excludes cache_read (which is ~10% cost on pricing).
+  ($all | map({
+    ts: ((.timestamp // "1970-01-01T00:00:00Z") | ts_epoch),
+    total: ((.message.usage.input_tokens // 0) + (.message.usage.cache_creation_input_tokens // 0) + (.message.usage.cache_read_input_tokens // 0) + (.message.usage.output_tokens // 0)),
+    effective: ((.message.usage.input_tokens // 0) + (.message.usage.cache_creation_input_tokens // 0) + (.message.usage.output_tokens // 0))
+  })) as $events |
+
+  # Hourly buckets (24 bins, oldest → newest).
+  # bucket i covers (now - (24-i)*3600) .. (now - (23-i)*3600).
+  # Most recent hour is index 23.
+  (reduce $events[] as $e (
+    {hourly_total: zeros(24), hourly_effective: zeros(24), daily_total: zeros(7), daily_effective: zeros(7)};
+    (now - $e.ts) as $age |
+    (if $age < 86400 and $age >= 0 then (23 - ($age / 3600 | floor)) else -1 end) as $hbucket |
+    (if $age < 604800 and $age >= 0 then (6 - ($age / 86400 | floor)) else -1 end) as $dbucket |
+    (if $hbucket >= 0 and $hbucket < 24
+      then .hourly_total[$hbucket] += $e.total | .hourly_effective[$hbucket] += $e.effective
+      else . end) |
+    (if $dbucket >= 0 and $dbucket < 7
+      then .daily_total[$dbucket] += $e.total | .daily_effective[$dbucket] += $e.effective
+      else . end)
+  )) as $buckets |
+
+  sum_usage($all) + {
+    tokens_5m: (sum_usage($d5m) | .total_tokens),
+    tokens_15m: (sum_usage($d15m) | .total_tokens),
+    tokens_24h: (sum_usage($d24) | .total_tokens),
+    tokens_48h: (sum_usage($d48) | .total_tokens),
+    tokens_7d: (sum_usage($d7) | .total_tokens),
+    turns_5m: ($d5m | length),
+    turns_15m: ($d15m | length),
+    turns_24h: ($d24 | length),
+    turns_48h: ($d48 | length),
+    turns_7d: ($d7 | length),
+    conversations: $convs,
+    last_activity: (if $last > 0 then ($last | todate) else null end),
+    buckets: $buckets,
+    top_conversations: ($conversations | sort_by(-.effective_tokens) | .[0:20])
+  }
+'
