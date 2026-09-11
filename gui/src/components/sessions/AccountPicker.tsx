@@ -85,7 +85,7 @@ export function AccountPicker({ sessionName, currentAccount, currentEmail, curre
             }`}
           >
             <span className="font-mono">default</span>
-            <span className="text-muted text-[10px] ml-1.5">(stored login)
+            <span className="text-muted text-[10px] ml-1.5">(stored login)</span>
           </button>
 
           {accounts.map((a) => (
