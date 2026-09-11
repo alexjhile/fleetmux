@@ -98,6 +98,19 @@ win_env() {
   printf '%s' "$v"
 }
 
+# Single-quoted PowerShell literal. Double quotes don't survive the
+# WSL→Windows argv hop reliably, so everything passed to PowerShell uses these.
+ps_quote() {
+  local q="'"
+  printf "'%s'" "${1//$q/$q$q}"
+}
+
+# PowerShell that creates Desktop\<name>.lnk (target, args, icon) and prints
+# the shortcut's full path.
+ps_desktop_shortcut() {
+  printf '%s' "\$s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop') + '\\$1.lnk'); \$s.TargetPath = $(ps_quote "$2"); \$s.Arguments = $(ps_quote "$3"); \$s.IconLocation = $(ps_quote "$4"); \$s.Description = 'fleetmux homebase: Claude Code + the fleet dashboard'; \$s.Save(); \$s.FullName"
+}
+
 install_windows_integration() {
   if ! command -v cmd.exe >/dev/null 2>&1 || ! command -v wslpath >/dev/null 2>&1; then
     warn "Windows interop unavailable (cmd.exe/wslpath not found) — skipping the Windows shim and terminal profile"
@@ -160,6 +173,32 @@ install_windows_integration() {
       '{profiles: [{name: "fleetmux", commandline: $cmd, icon: $icon, tabTitle: "fleetmux"}]}' \
       > "$frag_dir/fleetmux.json"
     ok "Windows Terminal profile 'fleetmux' installed (restart Windows Terminal to see it)"
+  fi
+
+  # Desktop shortcut "fleetmux homebase" → the controller (Claude Code + the
+  # docked dashboard): through the Windows Terminal profile when WT is
+  # installed, else straight into wsl.exe. The icon is copied to the Windows
+  # side so it still renders while WSL is stopped.
+  if [ -n "$localappdata" ] && command -v powershell.exe >/dev/null 2>&1; then
+    local ico_dir target args lnk
+    ico_dir="$(wslpath -u "$localappdata")/fleetmux"
+    mkdir -p "$ico_dir"
+    cp "$REPO_DIR/gui/src-tauri/icons/icon.ico" "$ico_dir/fleetmux.ico"
+    if command -v wt.exe >/dev/null 2>&1; then
+      target=$(wslpath -w "$(command -v wt.exe)")
+      args="-p fleetmux"
+    else
+      target='C:\Windows\System32\wsl.exe'
+      args="${distro:+-d $distro }-e bash -l $REPO_DIR/fleetmux.command"
+    fi
+    lnk=$(powershell.exe -NoProfile -NonInteractive -Command \
+      "$(ps_desktop_shortcut "fleetmux homebase" "$target" "$args" "$(wslpath -w "$ico_dir/fleetmux.ico")")" \
+      2>/dev/null | tr -d '\r')
+    if [ -n "$lnk" ]; then
+      ok "Desktop shortcut: $lnk"
+    else
+      warn "couldn't create the desktop shortcut — use the 'fleetmux' Windows Terminal profile instead"
+    fi
   fi
 }
 

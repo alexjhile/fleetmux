@@ -54,6 +54,7 @@ Under WSL, `setup.sh` does the usual setup (CLI on PATH, `sessions.json`, GUI bu
 
 - **writes `fleetmux.cmd`** into `%USERPROFILE%\.local\bin` if that folder is on your Windows PATH, and into `%USERPROFILE%\bin` otherwise (it prints how to add it to PATH). Override the location with `FLEETMUX_WIN_BIN`. After that, `fleetmux list` works straight from PowerShell.
 - **adds a "fleetmux" Windows Terminal profile.** Pick it from the tab dropdown to get Claude Code with the dashboard docked. This is the Windows equivalent of double-clicking `fleetmux.command` on macOS.
+- **puts a "fleetmux homebase" shortcut on your desktop.** It opens the same thing: the `homebase` controller session with the dashboard, in Windows Terminal if it's installed. If homebase is already running, it reattaches instead of starting a second copy.
 
 ## 4. Daily use
 

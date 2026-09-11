@@ -11,7 +11,9 @@
 #
 # Config (env overrides):
 #   FLEETMUX_TMUX_SESSION   tmux session name      (default: aios)
-#   FLEETMUX_WINDOW         control window name    (default: control)
+#   FLEETMUX_WINDOW         tmux window name       (default: homebase — the
+#                           controller session setup.sh registers, so the GUI
+#                           and dashboard show it as running)
 #   FLEETMUX_WORKDIR        starting directory     (default: this repo's dir)
 #   CLAUDE_BIN              claude binary           (default: claude on PATH)
 
@@ -19,7 +21,7 @@ set -u
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 TMUX_SESSION="${FLEETMUX_TMUX_SESSION:-aios}"
-WINDOW_NAME="${FLEETMUX_WINDOW:-control}"
+WINDOW_NAME="${FLEETMUX_WINDOW:-homebase}"
 WORKDIR="${FLEETMUX_WORKDIR:-$REPO_DIR}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
 CLAUDE_CMD="$CLAUDE_BIN --continue --verbose --dangerously-skip-permissions"
