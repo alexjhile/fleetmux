@@ -53,6 +53,24 @@ teardown() {
     [[ "$result" == "3" ]]
 }
 
+@test "registry_add_session stores a Windows path as a WSL path for local sessions" {
+    stub_wslpath
+    registry_add_session "winsess" "local" 'C:\code\api' "" ""
+
+    local result
+    result=$(registry_get_field "winsess" "path")
+    [[ "$result" == "/mnt/c/code/api" ]]
+}
+
+@test "registry_add_session leaves remote paths untouched" {
+    stub_wslpath
+    registry_add_session "remsess" "remote" '/srv/app' "" "deploy@203.0.113.10"
+
+    local result
+    result=$(registry_get_field "remsess" "path")
+    [[ "$result" == "/srv/app" ]]
+}
+
 @test "registry_remove_session removes entry" {
     registry_remove_session "testlocal"
 

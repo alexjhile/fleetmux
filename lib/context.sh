@@ -32,7 +32,8 @@ read_local_context() {
             local fname
             fname=$(basename "$f")
             local mod_time size
-            mod_time=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$f" 2>/dev/null || echo "?")
+            mod_time=$(epoch_fmt "$(file_mtime "$f")" "+%Y-%m-%d %H:%M")
+            [[ -z "$mod_time" ]] && mod_time="?"
             size=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
             printf "  ${C_DIM}%-30s %s  %s bytes${C_RESET}\n" "$fname" "$mod_time" "$size"
             ((file_count++))

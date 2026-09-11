@@ -59,12 +59,12 @@ export function DashboardPage({ sessions, onRefresh }: { sessions: AiosSession[]
         <button
           onClick={handleLaunchHomebase}
           className="bg-card border border-border rounded-lg px-4 py-3 flex items-center gap-3 hover:border-accent/50 transition-colors cursor-pointer"
-          title="Open master Terminal.app — follows sidebar session clicks"
+          title="Open the master terminal (Terminal.app / Windows Terminal) — follows sidebar session clicks"
         >
           <TerminalSquare className="w-5 h-5 text-accent" />
           <div>
             <p className="text-sm font-bold text-accent">Master Terminal</p>
-            <p className="text-[10px] text-muted">Terminal.app</p>
+            <p className="text-[10px] text-muted">native window</p>
           </div>
         </button>
         {[

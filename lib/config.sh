@@ -2,6 +2,9 @@
 # AIOS Configuration — constants, paths, env loading
 [[ -n "${_AIOS_CONFIG_LOADED:-}" ]] && return 0; _AIOS_CONFIG_LOADED=1
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/platform.sh"
+
 AIOS_DIR="${AIOS_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # shellcheck disable=SC2034
 AIOS_TMUX_SESSION="aios"

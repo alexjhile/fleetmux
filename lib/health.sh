@@ -38,7 +38,7 @@ health_check_vps() {
     # Calculate uptime duration if we got a date
     if echo "$uptime_val" | grep -qE '^[0-9]{4}-'; then
         local boot_ts now_ts diff_s days hours
-        boot_ts=$(date -j -f "%Y-%m-%d %H:%M:%S" "$uptime_val" "+%s" 2>/dev/null || echo "0")
+        boot_ts=$(local_datetime_to_epoch "$uptime_val")
         now_ts=$(date +%s)
         if [[ "$boot_ts" -gt 0 ]]; then
             diff_s=$((now_ts - boot_ts))

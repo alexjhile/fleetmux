@@ -116,7 +116,7 @@ run_sync() {
                 'first(.[] | select(.session == $s)).dispatched_at // empty' \
                 "$TASKS_FILE" 2>/dev/null)
             if [[ -n "$last_task_at" ]]; then
-                last_task_ts=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$last_task_at" "+%s" 2>/dev/null || echo "0")
+                last_task_ts=$(iso_to_epoch "$last_task_at")
             fi
         fi
 

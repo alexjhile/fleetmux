@@ -4,10 +4,11 @@
 # Reads $AIOS_ACCOUNT; if set, loads the matching token from
 # $HOME/.aios-accounts/<name>.token and exports CLAUDE_CODE_OAUTH_TOKEN
 # before execing `claude`. If $AIOS_ACCOUNT is empty, falls through to
-# Claude Code's default auth (macOS Keychain locally, error on headless Linux).
+# Claude Code's default auth (its stored login: the Keychain on macOS,
+# ~/.claude/.credentials.json on Linux/WSL; error if never logged in).
 #
 # Opt-out: $AIOS_REMOTE_CONTROL=1 skips the token export AND unsets any
-# inherited CLAUDE_CODE_OAUTH_TOKEN, so Claude Code reads the keychain
+# inherited CLAUDE_CODE_OAUTH_TOKEN, so Claude Code reads the stored
 # claude.ai credential directly. Required for /remote-control, which
 # rejects CLAUDE_CODE_OAUTH_TOKEN as inference-only by policy regardless
 # of the token's underlying scope. Use this when you need full-scope
@@ -22,7 +23,7 @@ account="${AIOS_ACCOUNT:-}"
 
 if [[ "${AIOS_REMOTE_CONTROL:-}" == "1" ]]; then
     unset CLAUDE_CODE_OAUTH_TOKEN
-    echo "[aios-claude] AIOS_REMOTE_CONTROL=1 — using keychain auth (no CLAUDE_CODE_OAUTH_TOKEN export)" >&2
+    echo "[aios-claude] AIOS_REMOTE_CONTROL=1 — using stored login (no CLAUDE_CODE_OAUTH_TOKEN export)" >&2
 elif [[ -n "$account" ]]; then
     token_file="${HOME}/.aios-accounts/${account}.token"
     if [[ -r "$token_file" ]]; then

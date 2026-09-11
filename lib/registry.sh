@@ -42,6 +42,9 @@ registry_add_session() {
     local description="${4:-}"
     local host="${5:-}"
 
+    # Local sessions run inside WSL on Windows — accept C:\... paths too.
+    [[ "$type" != "remote" ]] && path=$(platform_normalize_path "$path")
+
     if registry_session_exists "$name"; then
         echo "Error: Session '$name' already exists" >&2
         return 1

@@ -4,8 +4,9 @@
 #
 # Wires live dispatch around an autonomous run harness in the target repo:
 # .sandcastle/loop.ts (drain the ready-for-agent queue) or
-# .sandcastle/main.ts <N> (run one issue), wrapped in `caffeinate -i` on
-# macOS to keep the machine awake. Each run records one row to tasks.json
+# .sandcastle/main.ts <N> (run one issue), wrapped in run_keepawake
+# (caffeinate -i on macOS, a Windows execution-state request under WSL) to
+# keep the machine awake. Each run records one row to tasks.json
 # and a per-run JSON sidecar under .aios/afk-runs/<session>-<unix-ts>.json.
 #
 # Public functions:
@@ -127,14 +128,12 @@ afk_run() {
         return 1
     fi
 
-    local npx_bin caffeinate_bin
+    local npx_bin
     npx_bin=$(command -v npx || true)
     if [[ -z "$npx_bin" ]]; then
         echo "afk_run: npx not found on PATH — cannot dispatch" >&2
         return 1
     fi
-    # caffeinate is macOS-only; on Linux/CI we transparently skip the wrapper.
-    caffeinate_bin=$(command -v caffeinate || true)
 
     # Sidecar dir + per-run filename
     local runs_dir="${AIOS_DIR}/.aios/afk-runs"
@@ -154,18 +153,11 @@ afk_run() {
         cd "$session_path" || exit 1
         export AIOS_AFK_SESSION="$session"
         export AIOS_AFK_LOG="$sidecar"
-        if [[ -n "$caffeinate_bin" ]]; then
-            if [[ -n "$issue" ]]; then
-                "$caffeinate_bin" -i "$npx_bin" tsx "$script" "$issue"
-            else
-                "$caffeinate_bin" -i "$npx_bin" tsx "$script"
-            fi
+        # Keep the host awake for the whole drain (no-op where unsupported).
+        if [[ -n "$issue" ]]; then
+            run_keepawake "$npx_bin" tsx "$script" "$issue"
         else
-            if [[ -n "$issue" ]]; then
-                "$npx_bin" tsx "$script" "$issue"
-            else
-                "$npx_bin" tsx "$script"
-            fi
+            run_keepawake "$npx_bin" tsx "$script"
         fi
     ) || exit_code=$?
 

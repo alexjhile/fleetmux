@@ -37,6 +37,7 @@ import {
 import { setupTerminalWs } from './terminal.js'
 import { setupAfkWs, listAfkSessions, listLogFiles, listAfkRuns } from './afk.js'
 import { listDir, readFile as readFsFile, openInVscode, filesRoot } from './files.js'
+import { IS_MAC, TERMINAL_SCRIPT_EXT, openTerminalWithScript } from './launch.js'
 
 const app = express()
 const server = createServer(app)
@@ -216,10 +217,10 @@ app.post('/api/actions/drift-fix', async (_req, res) => {
 
 // ── Launch Homebase Terminal ─────────────────────────────────────
 
-app.post('/api/launch-homebase', (_req, res) => {
+app.post('/api/launch-homebase', async (_req, res) => {
   try {
     const commandFile = process.env.FLEETMUX_LAUNCHER || path.resolve(import.meta.dirname, '..', '..', 'fleetmux.command')
-    execCb(`open "${commandFile}"`)
+    await openTerminalWithScript(commandFile, 'fleetmux', true)
     res.json({ ok: true })
   } catch (err: unknown) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to launch' })
@@ -228,8 +229,10 @@ app.post('/api/launch-homebase', (_req, res) => {
 
 // ── Native Terminal Popout ────────────────────────────────────────
 
-app.post('/api/sessions/:name/popout', (req, res) => {
+app.post('/api/sessions/:name/popout', async (req, res) => {
   const { name } = req.params
+  // The name is interpolated into a shell script below — keep it tame.
+  if (!/^[A-Za-z0-9_.-]+$/.test(name)) return res.status(400).json({ error: 'Invalid session name' })
   const sessions = readSessions()
   const session = sessions.find((s) => s.name === name)
   if (!session) return res.status(404).json({ error: 'Session not found' })
@@ -237,10 +240,11 @@ app.post('/api/sessions/:name/popout', (req, res) => {
   const tmux = TMUX_BIN
   const socket = `/tmp/tmux-${process.getuid!()}/default`
 
-  // Write a .command file — Terminal.app runs these natively in a new window
-  const scriptPath = `/tmp/fleetmux-terminal-${name}.command`
+  // Script that joins the aios tmux session at this window, opened in a new
+  // native terminal (Terminal.app on macOS, Windows Terminal under WSL).
+  const scriptPath = `/tmp/fleetmux-terminal-${name}.${TERMINAL_SCRIPT_EXT}`
   const script = [
-    '#!/bin/zsh',
+    IS_MAC ? '#!/bin/zsh' : '#!/usr/bin/env bash',
     `# fleetmux — ${name}`,
     `printf "\\e]0;fleetmux — ${name}\\a"`,  // set window title
     'clear',
@@ -248,8 +252,8 @@ app.post('/api/sessions/:name/popout', (req, res) => {
   ].join('\n')
 
   try {
-    writeFileSync(scriptPath, script, { mode: 0o755 })
-    execCb(`open "${scriptPath}"`)
+    writeFileSync(scriptPath, script + '\n', { mode: 0o755 })
+    await openTerminalWithScript(scriptPath, `fleetmux: ${name}`)
     res.json({ ok: true })
   } catch (err: unknown) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to open terminal' })

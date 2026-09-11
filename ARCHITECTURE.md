@@ -7,6 +7,7 @@ fleetmux is a thin orchestration layer over `tmux`, `ssh`, `git`, and `jq`. Ther
 ```
 fleetmux                 entry point — arg parsing + command dispatch
 lib/
+  platform.sh            GNU/BSD date+stat shims, WSL detection, keep-awake (sourced by config.sh)
   config.sh              constants, paths, env loading, file locking, task recording
   registry.sh            read/write sessions.json
   session.sh             start/stop/attach via tmux (local) or ssh→tmux (remote)
@@ -63,5 +64,7 @@ bin/
 - **No daemon.** Every command is a short-lived process. Persistence is tmux + JSON files.
 - **Shortest path.** Local work uses direct tmux/filesystem; remote work uses `ssh`; a full remote Claude session is launched only when a task genuinely needs one.
 - **Bash 3.2 compatible.** macOS ships bash 3.2; the code avoids `mapfile`, `wait -n`, and unguarded empty-array expansion (`"${arr[@]+...}"` idiom throughout).
+- **GNU and BSD userlands.** macOS has BSD `date`/`stat`; Linux and WSL (Windows) have GNU. Their flags clash silently (`stat -f` on GNU means "filesystem status"), so every date/mtime operation goes through `lib/platform.sh`. CI runs the suite on both.
+- **Windows = WSL2.** On Windows everything runs inside WSL. The Windows side only gets a generated `fleetmux.cmd` shim and a Windows Terminal profile (see `setup.sh` and [WINDOWS.md](WINDOWS.md)).
 - **Atomic writes.** Task-history writes take a mkdir-based lock and write-then-rename.
 - **Include guards.** Every `lib/*.sh` is safe to source multiple times.

@@ -74,7 +74,8 @@ check_stuck_tasks() {
     while IFS=$'\t' read -r session dispatched_at task; do
         [[ -z "$session" ]] && continue
         local task_ts
-        task_ts=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$dispatched_at" "+%s" 2>/dev/null || echo "0")
+        task_ts=$(iso_to_epoch "$dispatched_at")
+        [[ "$task_ts" -eq 0 ]] && continue
         local age=$((now - task_ts))
 
         if [[ "$age" -ge "$threshold_seconds" ]]; then

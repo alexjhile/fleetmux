@@ -17,6 +17,7 @@ Bash (3.2+) · tmux · ssh · jq · bats-core · shellcheck
 
 ## Working in this repo
 - **Bash 3.2 compatibility is mandatory** (macOS stock bash). No `mapfile`, no `wait -n`; guard empty-array expansion with `"${arr[@]+"${arr[@]}"}"`.
+- **GNU + BSD userlands.** Never call `date -j`/`date -d`/`stat -f`/`stat -c` directly — use `iso_to_epoch`, `local_datetime_to_epoch`, `epoch_fmt`, `file_mtime` from `lib/platform.sh`. macOS is BSD; Linux and WSL (the Windows story, see `WINDOWS.md`) are GNU.
 - **`make check` must stay green** — `shellcheck -x` + `bats`. CI runs it on every push/PR.
 - **No hardcoded paths or secrets.** Everything machine-specific goes through `sessions.json` or `AIOS_*` env vars (`AIOS_DIR`, `AIOS_SECRETS_DIR`, `AIOS_CLAUDE_CODE_ROOT`, `AIOS_REMOTE_WRAPPER`).
 - New commands: add `lib/<name>.sh` with an include guard, source it from `fleetmux`, add bats tests, update the help text and README.

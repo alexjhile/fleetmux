@@ -205,6 +205,70 @@ afk_teardown_live_session() {
     [[ "$(echo "$npx_args" | sed -n 3p)" == "42" ]]
 }
 
+@test "afk_run under WSL (no caffeinate) holds a Windows keep-awake request for the drain" {
+    afk_setup_live_session drain
+    rm -f "${STUB_DIR}/caffeinate"
+    if command -v caffeinate >/dev/null 2>&1; then
+        afk_teardown_live_session
+        skip "host has a real caffeinate (macOS) — WSL branch unreachable"
+    fi
+    # PowerShell stub: record argv, block until stdin closes, mark release.
+    cat > "${STUB_DIR}/powershell.exe" <<'STUB'
+#!/usr/bin/env bash
+{ printf '%s\n' "$@"; } > "${STUB_LOG_DIR}/powershell.argv"
+cat >/dev/null
+touch "${STUB_LOG_DIR}/powershell.released"
+STUB
+    chmod +x "${STUB_DIR}/powershell.exe"
+
+    export AIOS_PLATFORM=wsl
+    run afk_run "testlocal"
+    unset AIOS_PLATFORM
+    afk_teardown_live_session
+
+    [[ "$status" -eq 0 ]]
+    # The drain itself still ran, unwrapped
+    [[ "$(sed -n 1p "${STUB_LOG_DIR}/npx.argv")" == "tsx" ]]
+    [[ "$(sed -n 2p "${STUB_LOG_DIR}/npx.argv")" == ".sandcastle/loop.ts" ]]
+    # PowerShell pinned the execution state, and had already been released
+    # (saw EOF) by the time afk_run returned
+    grep -q "SetThreadExecutionState" "${STUB_LOG_DIR}/powershell.argv"
+    [[ -f "${STUB_LOG_DIR}/powershell.released" ]]
+}
+
+@test "run_keepawake under WSL returns the command's exit status, not PowerShell's" {
+    STUB_DIR="${TEST_DIR}/stubs"
+    mkdir -p "$STUB_DIR"
+    PATH="${STUB_DIR}:${PATH}"
+    if command -v caffeinate >/dev/null 2>&1; then
+        skip "host has a real caffeinate (macOS) — WSL branch unreachable"
+    fi
+    printf '#!/usr/bin/env bash\ncat >/dev/null\nexit 0\n' > "${STUB_DIR}/powershell.exe"
+    chmod +x "${STUB_DIR}/powershell.exe"
+    export AIOS_PLATFORM=wsl
+
+    run run_keepawake bash -c 'echo drained; exit 7'
+    [[ "$status" -eq 7 ]]
+    [[ "$output" == "drained" ]]
+}
+
+@test "afk_run with neither caffeinate nor WSL runs the drain directly" {
+    afk_setup_live_session drain
+    rm -f "${STUB_DIR}/caffeinate"
+    if command -v caffeinate >/dev/null 2>&1; then
+        afk_teardown_live_session
+        skip "host has a real caffeinate (macOS)"
+    fi
+
+    export AIOS_PLATFORM=linux
+    run afk_run "testlocal"
+    unset AIOS_PLATFORM
+    afk_teardown_live_session
+
+    [[ "$status" -eq 0 ]]
+    [[ "$(sed -n 2p "${STUB_LOG_DIR}/npx.argv")" == ".sandcastle/loop.ts" ]]
+}
+
 @test "afk_run live drain refuses when .sandcastle/loop.ts is missing" {
     afk_setup_live_session missing-loop
 

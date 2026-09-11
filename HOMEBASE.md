@@ -74,6 +74,6 @@ Run `fleetmux help` for the full command list.
    export AIOS_CONTROLLER_SESSION=homebase
    ```
 4. Make sure the AFK prerequisites are installed once — see [`afk-workflow/docs/install.md`](afk-workflow/docs/install.md) (the pipeline skills + the `.sandcastle/` harness).
-5. Launch: double-click **`fleetmux.command`** (macOS) — opens the controller with the dashboard docked below — or run `claude` in that directory.
+5. Launch: double-click **`fleetmux.command`** (macOS) or open the **fleetmux** Windows Terminal profile (Windows/WSL). Either one opens the controller with the dashboard docked below. You can also just run `claude` in that directory.
 
 From then on: talk to that session in English, and it runs the operation.

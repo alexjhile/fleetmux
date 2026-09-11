@@ -37,9 +37,10 @@ If you run more than two or three Claude Code sessions, you lose the plot fast: 
 
 ## Requirements
 
+- macOS, Linux, or **Windows via WSL2** — see **[WINDOWS.md](WINDOWS.md)** for the Windows walkthrough
 - `bash` (3.2+ — macOS stock bash works), `tmux`, `ssh`, `jq`, `git`
-- [Claude Code](https://www.anthropic.com/claude-code) installed (`claude` on `PATH`) **and authenticated** — run `claude` once and sign in before pointing fleetmux at it
-- Optional: `glab`/`gh` for issue-queue probing, `npx`/`tsx` for the AFK harness, `shellcheck` + `bats` for development
+- [Claude Code](https://www.anthropic.com/claude-code) installed (`claude` on `PATH`) **and authenticated** — run `claude` once and sign in before pointing fleetmux at it (on Windows: inside WSL)
+- Optional: `glab`/`gh` for issue-queue probing, `npx`/`tsx` for the AFK harness, `shellcheck` + `bats` for development; Node 20.11+ for the web GUI
 
 ## Quickest start: one command
 
@@ -50,6 +51,8 @@ cd fleetmux
 ```
 
 `setup.sh` checks prerequisites, links the CLI onto your PATH, seeds `sessions.json`, registers a `homebase` controller session, builds the web GUI, starts it on **http://localhost:9035**, and opens it in your browser. Safe to re-run.
+
+**On Windows**, run it inside WSL2. It also installs a `fleetmux` command for PowerShell/cmd and a "fleetmux" Windows Terminal profile. See [WINDOWS.md](WINDOWS.md).
 
 > **Hand it to Claude Code:** open Claude Code in the cloned repo and say *"read README.md, then run ./setup.sh."* With permissions granted it'll do the whole bootstrap — provided the prerequisites below are already installed and you're signed in to Claude Code.
 
@@ -120,13 +123,13 @@ The real workflow is **AFK-first** — you don't babysit live sessions, you queu
 
 Direct, hands-on dispatch (`start`/`run`/`ssh`) is still there for debugging and one-offs — it's just the exception, not the day job.
 
-To set it up, make **[`HOMEBASE.md`](HOMEBASE.md)** the `CLAUDE.md` of that session (full instructions + the AFK loop inside). Then double-click `fleetmux.command` — or run `claude` in your projects dir — and start talking.
+To set it up, make **[`HOMEBASE.md`](HOMEBASE.md)** the `CLAUDE.md` of that session (full instructions + the AFK loop inside). Then double-click `fleetmux.command` (macOS), open the "fleetmux" Windows Terminal profile (Windows), or run `claude` in your projects dir, and start talking.
 
 ## Dashboard & launcher
 
 - **`fleetmux watch`** — full-screen live status (refreshes every N seconds).
 - **`fleetmux dash`** — dock a compact status pane in your current tmux window; **`fleetmux dash keys`** installs `prefix+a` (toggle dash) and `prefix+g` (session picker).
-- **`fleetmux.command`** — double-click in Finder (macOS) to open Claude Code + the dashboard in one move. Re-running reattaches.
+- **`fleetmux.command`** — double-click in Finder (macOS), or open the "fleetmux" Windows Terminal profile (Windows), to open Claude Code + the dashboard in one move. Re-running reattaches.
 - **Web GUI** — see [`gui/`](gui/): a browser/desktop dashboard on `localhost:9035` with live terminals, usage charts, and health.
 
 ## Configuration
@@ -181,8 +184,9 @@ The workflow and a ready-to-copy harness template are bundled in **[`afk-workflo
 ```
 setup.sh              one-command bootstrap (CLI + GUI + browser)
 fleetmux              CLI entry point (bash)
-fleetmux.command      double-click launcher (macOS)
+fleetmux.command      one-move launcher (Finder double-click / Windows Terminal profile)
 HOMEBASE.md           operator playbook — drive the fleet in English
+WINDOWS.md            running fleetmux on Windows via WSL2
 lib/                  command modules (one concern each)
 bin/                  launch wrapper + usage/limits helpers
 test/                 bats suite

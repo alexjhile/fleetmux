@@ -43,7 +43,10 @@ npm run dev          # Vite on :9036 + Express on :9035 (concurrently)
 ```bash
 npm run build        # frontend → dist/ (served by the Express server in production)
 npm run tauri:build  # optional: macOS desktop app
+npm run tauri:build -- --bundles nsis   # optional: Windows desktop app (build on Windows itself)
 ```
+
+**Windows:** the server runs inside WSL2 (node-pty needs a real PTY and tmux). WSL forwards `localhost:9035` to Windows, so open it in any Windows browser. The "Master Terminal" and session popout buttons open Windows Terminal tabs (falling back to a console window). See [../WINDOWS.md](../WINDOWS.md).
 
 ## Tests
 

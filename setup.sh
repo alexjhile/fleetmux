@@ -7,6 +7,10 @@
 # controller session, builds the web GUI, starts it on :9035, and opens it in
 # your browser. Safe to re-run (idempotent).
 #
+# Runs on macOS, Linux, and Windows via WSL2 — on Windows, run it *inside* your
+# WSL distro (see WINDOWS.md). Under WSL it also installs a `fleetmux` command
+# for PowerShell/cmd and a "fleetmux" Windows Terminal profile.
+#
 # Prereqs it can't install for you: Claude Code (authenticated), tmux, jq, git,
 # and Node/npm (for the GUI). It checks and tells you what's missing.
 
@@ -14,10 +18,15 @@ set -eo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
+# shellcheck source=lib/platform.sh
+source "$REPO_DIR/lib/platform.sh"
 
 say()  { printf '\033[36m▶ %s\033[0m\n' "$1"; }
 warn() { printf '\033[33m!  %s\033[0m\n' "$1"; }
 ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
+
+IS_MAC=0; [ "$(uname -s)" = "Darwin" ] && IS_MAC=1
+IS_WSL=0; platform_is_wsl && IS_WSL=1
 
 # ── 1. Prerequisites ─────────────────────────────────────────────────────────
 say "Checking prerequisites"
@@ -25,18 +34,50 @@ core_missing=""
 for c in bash tmux jq git; do
   command -v "$c" >/dev/null 2>&1 || core_missing="$core_missing $c"
 done
-command -v claude >/dev/null 2>&1 || core_missing="$core_missing claude"
+command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ] || core_missing="$core_missing claude"
 if [ -n "$core_missing" ]; then
   warn "Missing:$core_missing"
-  echo "   Install them first. Claude Code: https://www.anthropic.com/claude-code"
+  if [ "$IS_MAC" -eq 1 ]; then
+    echo "   brew install tmux jq git"
+  elif command -v apt-get >/dev/null 2>&1; then
+    echo "   sudo apt-get update && sudo apt-get install -y tmux jq git curl"
+  fi
+  echo "   Claude Code: curl -fsSL https://claude.ai/install.sh | bash"
   echo "   (then run 'claude' once and sign in so fleetmux can launch sessions)."
+  [ "$IS_WSL" -eq 1 ] && echo "   Under WSL, install Claude Code *inside* the distro — the Windows claude.exe can't drive tmux sessions."
   exit 1
 fi
 ok "core tools present"
 
+if [ "$IS_WSL" -eq 1 ]; then
+  case "$REPO_DIR" in
+    /mnt/*) warn "repo is on the Windows filesystem ($REPO_DIR) — it works, but git, npm and the GUI are much faster from the WSL home dir (e.g. git clone into ~/fleetmux)." ;;
+  esac
+fi
+
+# The GUI server needs Node 20.11+ (import.meta.dirname); on Linux/WSL,
+# node-pty also compiles from source and needs a C++ toolchain + python3.
 have_npm=1
-command -v npm >/dev/null 2>&1 || have_npm=0
-[ "$have_npm" -eq 0 ] && warn "npm not found — will set up the CLI but skip the GUI"
+if ! command -v npm >/dev/null 2>&1; then
+  have_npm=0
+  warn "npm not found — will set up the CLI but skip the GUI (install Node 20.11+, e.g. via nvm)"
+else
+  node_ver=$(node -p 'process.versions.node' 2>/dev/null || echo 0)
+  node_major=${node_ver%%.*}; node_rest=${node_ver#*.}; node_minor=${node_rest%%.*}
+  if [ "$node_major" -lt 20 ] || { [ "$node_major" -eq 20 ] && [ "$node_minor" -lt 11 ]; }; then
+    have_npm=0
+    warn "Node $node_ver is too old for the GUI (needs 20.11+) — skipping it. Install a newer Node (e.g. nvm install --lts) and re-run."
+  fi
+  if [ "$have_npm" -eq 1 ] && [ "$IS_MAC" -eq 0 ]; then
+    for c in make g++ python3; do
+      if ! command -v "$c" >/dev/null 2>&1; then
+        have_npm=0
+        warn "$c not found — node-pty can't compile, skipping the GUI. Install: sudo apt-get install -y build-essential python3"
+        break
+      fi
+    done
+  fi
+fi
 
 # ── 2. CLI on PATH ───────────────────────────────────────────────────────────
 say "Linking the fleetmux CLI into ~/bin"
@@ -47,6 +88,85 @@ case ":$PATH:" in
   *":$HOME/bin:"*) ;;
   *) warn "$HOME/bin is not on your PATH — add: export PATH=\"\$HOME/bin:\$PATH\"" ;;
 esac
+
+# ── 2b. Windows integration (WSL only) ──────────────────────────────────────
+# Read a Windows environment variable from inside WSL.
+win_env() {
+  local v
+  v=$(cmd.exe /c "echo %$1%" 2>/dev/null | tr -d '\r')
+  [ "$v" = "%$1%" ] && v=""
+  printf '%s' "$v"
+}
+
+install_windows_integration() {
+  if ! command -v cmd.exe >/dev/null 2>&1 || ! command -v wslpath >/dev/null 2>&1; then
+    warn "Windows interop unavailable (cmd.exe/wslpath not found) — skipping the Windows shim and terminal profile"
+    return 0
+  fi
+  local distro="${WSL_DISTRO_NAME:-}" distro_arg=""
+  [ -n "$distro" ] && distro_arg="-d \"$distro\" "
+
+  local userprofile localappdata winpath
+  userprofile=$(win_env USERPROFILE)
+  localappdata=$(win_env LOCALAPPDATA)
+  winpath=$(win_env PATH | tr '[:upper:]' '[:lower:]')
+  if [ -z "$userprofile" ]; then
+    warn "couldn't read %USERPROFILE% from Windows — skipping the Windows shim and terminal profile"
+    return 0
+  fi
+
+  # fleetmux.cmd — lets PowerShell/cmd run `fleetmux ...` (forwards into WSL).
+  # Prefer a dir already on the Windows PATH; FLEETMUX_WIN_BIN overrides.
+  local bin_win="${FLEETMUX_WIN_BIN:-}" on_path=1
+  if [ -z "$bin_win" ]; then
+    local lower_local
+    lower_local=$(printf '%s' "${userprofile}\\.local\\bin" | tr '[:upper:]' '[:lower:]')
+    case ";$winpath;" in
+      *";$lower_local;"*|*";$lower_local\\;"*) bin_win="${userprofile}\\.local\\bin" ;;
+      *) bin_win="${userprofile}\\bin" ;;
+    esac
+  fi
+  local lower_bin
+  lower_bin=$(printf '%s' "$bin_win" | tr '[:upper:]' '[:lower:]')
+  case ";$winpath;" in
+    *";$lower_bin;"*|*";$lower_bin\\;"*) ;;
+    *) on_path=0 ;;
+  esac
+
+  local bin_dir
+  bin_dir=$(wslpath -u "$bin_win")
+  mkdir -p "$bin_dir"
+  {
+    echo '@echo off'
+    echo 'rem Generated by fleetmux setup.sh - runs the fleetmux CLI inside WSL.'
+    echo "wsl.exe ${distro_arg}-e bash -l \"$REPO_DIR/fleetmux\" %*"
+  } | sed 's/$/\r/' > "$bin_dir/fleetmux.cmd"
+  ok "Windows command: $bin_win\\fleetmux.cmd"
+  if [ "$on_path" -eq 0 ]; then
+    warn "$bin_win is not on your Windows PATH. In PowerShell run:"
+    echo "   [Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path','User') + ';$bin_win', 'User')"
+    echo "   then open a new terminal."
+  fi
+
+  # Windows Terminal profile — the Windows equivalent of double-clicking
+  # fleetmux.command: Claude Code + the docked dashboard in one tab.
+  if [ -n "$localappdata" ]; then
+    local frag_dir
+    frag_dir="$(wslpath -u "$localappdata")/Microsoft/Windows Terminal/Fragments/fleetmux"
+    mkdir -p "$frag_dir"
+    jq -n \
+      --arg cmd "wsl.exe ${distro_arg}-e bash -l \"$REPO_DIR/fleetmux.command\"" \
+      --arg icon "$(wslpath -w "$REPO_DIR/gui/src-tauri/icons/32x32.png")" \
+      '{profiles: [{name: "fleetmux", commandline: $cmd, icon: $icon, tabTitle: "fleetmux"}]}' \
+      > "$frag_dir/fleetmux.json"
+    ok "Windows Terminal profile 'fleetmux' installed (restart Windows Terminal to see it)"
+  fi
+}
+
+if [ "$IS_WSL" -eq 1 ]; then
+  say "Installing Windows integration"
+  install_windows_integration
+fi
 
 # ── 3. Session registry + homebase controller ───────────────────────────────
 say "Seeding sessions.json"
@@ -59,6 +179,24 @@ else
 fi
 
 # ── 4. GUI: install + build ──────────────────────────────────────────────────
+open_url() {
+  local url="$1"
+  if [ "$IS_MAC" -eq 1 ]; then
+    open -a "Google Chrome" "$url" 2>/dev/null || open "$url" 2>/dev/null || true
+  elif [ "$IS_WSL" -eq 1 ]; then
+    # Opens in the default Windows browser; WSL2 forwards localhost to Windows.
+    if command -v wslview >/dev/null 2>&1; then
+      wslview "$url" >/dev/null 2>&1 || true
+    else
+      explorer.exe "$url" >/dev/null 2>&1 || true   # exits 1 even on success
+    fi
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 || true
+  else
+    warn "couldn't auto-open a browser — go to $url"
+  fi
+}
+
 if [ "$have_npm" -eq 1 ]; then
   say "Installing GUI dependencies (this can take a minute)"
   ( cd gui && npm install --no-fund --no-audit --silent )
@@ -85,19 +223,14 @@ if [ "$have_npm" -eq 1 ]; then
   fi
 
   say "Opening the dashboard in your browser"
-  if command -v open >/dev/null 2>&1; then
-    open -a "Google Chrome" "http://localhost:9035" 2>/dev/null || open "http://localhost:9035" 2>/dev/null || true
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "http://localhost:9035" >/dev/null 2>&1 || true
-  else
-    warn "couldn't auto-open a browser — go to http://localhost:9035"
-  fi
+  open_url "http://localhost:9035"
 fi
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo
 ok "Setup complete."
 echo "  • CLI:       fleetmux list"
+[ "$IS_WSL" -eq 1 ] && echo "               (also works from PowerShell/cmd, and the 'fleetmux' Windows Terminal profile)"
 echo "  • Dashboard: http://localhost:9035"
 echo "  • Drive it in English: make HOMEBASE.md the CLAUDE.md of your controller session"
 echo "    (the 'homebase' session is registered; see HOMEBASE.md for the 2-minute setup)."

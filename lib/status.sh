@@ -102,7 +102,7 @@ get_last_task() {
 
     # Calculate time ago
     local task_ts now_ts diff_s ago
-    task_ts=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$dispatched_at" "+%s" 2>/dev/null || echo "0")
+    task_ts=$(iso_to_epoch "$dispatched_at")
     now_ts=$(date +%s)
 
     if [[ "$task_ts" -gt 0 ]]; then
@@ -144,7 +144,7 @@ check_direct_work() {
             'first(.[] | select(.session == $s)).dispatched_at // empty' \
             "$TASKS_FILE" 2>/dev/null)
         if [[ -n "$last_task_at" ]]; then
-            last_task_ts=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$last_task_at" "+%s" 2>/dev/null || echo "0")
+            last_task_ts=$(iso_to_epoch "$last_task_at")
         fi
     fi
 
@@ -156,7 +156,7 @@ check_direct_work() {
             encoded=$(echo "$path" | sed 's|/$||' | sed 's|/|-|g' | sed 's|_|-|g')
             local memory_file="$HOME/.claude/projects/${encoded}/memory/MEMORY.md"
             if [[ -f "$memory_file" ]]; then
-                memory_ts=$(stat -f "%m" "$memory_file" 2>/dev/null || echo "0")
+                memory_ts=$(file_mtime "$memory_file")
             fi
             ;;
         remote)

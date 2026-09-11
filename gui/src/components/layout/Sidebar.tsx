@@ -64,7 +64,7 @@ function SortableSession({
       <Link
         to={`/session/${session.name}`}
         onClick={() => {
-          // Switch main Terminal.app to this session's tmux window
+          // Switch the master terminal to this session's tmux window
           api.sessions.attach(session.name).catch(() => {})
         }}
         className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
@@ -85,7 +85,7 @@ function SortableSession({
         onClick={async (e) => {
           e.preventDefault()
           e.stopPropagation()
-          // Auto-start if stopped, then popout to Terminal.app
+          // Auto-start if stopped, then popout to a native terminal window
           if (session.state === 'stopped') {
             await api.sessions.start(session.name).catch(() => {})
             // Wait for tmux window to be created before popout
@@ -94,7 +94,7 @@ function SortableSession({
           api.sessions.popout(session.name).catch(() => {})
         }}
         className="shrink-0 p-1 rounded opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-white/10 transition-opacity"
-        title={session.state === 'stopped' ? 'Start + open in Terminal.app' : 'Open in Terminal.app'}
+        title={session.state === 'stopped' ? 'Start + open in a terminal window' : 'Open in a terminal window'}
       >
         <ExternalLink className="w-3.5 h-3.5 text-muted" />
       </button>

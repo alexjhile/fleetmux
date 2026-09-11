@@ -19,6 +19,9 @@
 [[ -n "${_AIOS_WORKING_CHECK_LOADED:-}" ]] && return 0
 _AIOS_WORKING_CHECK_LOADED=1
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/platform.sh"
+
 AIOS_ROOT="${AIOS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 SESSIONS_JSON="${SESSIONS_FILE:-${AIOS_ROOT}/sessions.json}"
 
@@ -67,7 +70,7 @@ working_check() {
 
     local now mtime age_min
     now=$(date +%s)
-    mtime=$(stat -f %m "$path" 2>/dev/null || stat -c %Y "$path" 2>/dev/null)
+    mtime=$(file_mtime "$path")
     age_min=$(( (now - mtime) / 60 ))
 
     if [[ "$age_min" -gt "$WORKING_STALE_MIN" ]]; then

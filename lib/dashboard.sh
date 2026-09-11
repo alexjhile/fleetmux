@@ -27,7 +27,7 @@ _relative_time() {
     [[ -z "$ts" || "$ts" == "null" ]] && return
 
     local task_ts now_ts diff_s
-    task_ts=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" "+%s" 2>/dev/null || echo "0")
+    task_ts=$(iso_to_epoch "$ts")
     [[ "$task_ts" -eq 0 ]] && return
     now_ts=$(date +%s)
     diff_s=$((now_ts - task_ts))

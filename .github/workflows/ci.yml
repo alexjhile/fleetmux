@@ -16,10 +16,20 @@ jobs:
         run: shellcheck -x fleetmux lib/*.sh
 
   test:
-    runs-on: ubuntu-latest
+    # ubuntu = GNU date/stat (same userland as WSL on Windows);
+    # macos  = BSD date/stat + stock bash 3.2. lib/platform.sh has a branch for each.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install bats + deps
+      - name: Install bats + deps (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y bats jq git
+      - name: Install bats + deps (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bats-core jq
       - name: Run tests
         run: bats test/*.bats

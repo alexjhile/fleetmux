@@ -48,7 +48,7 @@ session_start() {
         local|utility)
             # Launch claude via ~/.aios-claude wrapper with AIOS_ACCOUNT set
             # so the wrapper can export the right OAuth token. Empty account
-            # falls through to default auth (macOS Keychain).
+            # falls through to Claude Code's own stored login.
             $TMUX_CMD new-window -t "$AIOS_TMUX_SESSION" -n "$name" \
                 "cd '${path}' && { AIOS_ACCOUNT='${account}' '${wrapper_local}' ${flags} || AIOS_ACCOUNT='${account}' '${wrapper_local}' ${flags_fresh}; }; bash"
             ;;

@@ -66,3 +66,18 @@ SESSIONS
 common_teardown() {
     rm -rf "$TEST_DIR"
 }
+
+# Put a fake `wslpath` first on PATH: `wslpath -u 'C:\Users\me'` → /mnt/c/Users/me.
+# Lets the Windows-path handling be tested on any host, WSL or not.
+stub_wslpath() {
+    mkdir -p "${TEST_DIR}/stubs"
+    cat > "${TEST_DIR}/stubs/wslpath" <<'STUB'
+#!/usr/bin/env bash
+p="${2//\\//}"
+drive=$(printf '%s' "${p:0:1}" | tr '[:upper:]' '[:lower:]')
+printf '/mnt/%s%s\n' "$drive" "${p:2}"
+STUB
+    chmod +x "${TEST_DIR}/stubs/wslpath"
+    PATH="${TEST_DIR}/stubs:${PATH}"
+    export PATH
+}

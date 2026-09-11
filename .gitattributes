@@ -1,0 +1,12 @@
+# Everything runs under bash (macOS, Linux, WSL) — keep LF endings even when
+# the repo is checked out by Git for Windows with core.autocrlf=true. A CRLF
+# script fails inside WSL with "$'\r': command not found".
+* text=auto eol=lf
+
+# Windows-side shims must stay CRLF for cmd.exe.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+*.png  binary
+*.ico  binary
+*.icns binary

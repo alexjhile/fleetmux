@@ -1,9 +1,13 @@
 #!/bin/bash
-# fleetmux — double-click launcher (macOS Terminal.app).
+# fleetmux — one-move launcher.
 #
 # Opens Claude Code inside a tmux window with the fleetmux dashboard docked
-# below it, so you start your day in one move. Double-click this file in Finder,
-# or run it from a shell. Safe to re-run — it reattaches if already running.
+# below it, so you start your day in one move. Safe to re-run — it reattaches
+# if already running.
+#   macOS:   double-click this file in Finder (runs in Terminal.app).
+#   Windows: pick the "fleetmux" profile in Windows Terminal (installed by
+#            setup.sh; it runs this script inside WSL).
+#   Any:     run it from a shell.
 #
 # Config (env overrides):
 #   FLEETMUX_TMUX_SESSION   tmux session name      (default: aios)
