@@ -3,11 +3,11 @@
 # Account profiles — multi-account OAuth token management.
 #
 # Tokens are generated once via `claude setup-token` (long-lived) and stored
-# centrally under $AIOS_SECRETS_DIR/claude-accounts/<name>.token. fleetmux
-# distributes them to $HOME/.aios-accounts/<name>.token on every managed
-# machine (local + remote) and installs the ~/.aios-claude wrapper which reads
-# $AIOS_ACCOUNT at launch time to pick the right token.
-[[ -n "${_AIOS_ACCOUNT_LOADED:-}" ]] && return 0; _AIOS_ACCOUNT_LOADED=1
+# centrally under $FLEETMUX_SECRETS_DIR/claude-accounts/<name>.token. fleetmux
+# distributes them to $HOME/.fleetmux-accounts/<name>.token on every managed
+# machine (local + remote) and installs the ~/.fleetmux-claude wrapper which reads
+# $FLEETMUX_ACCOUNT at launch time to pick the right token.
+[[ -n "${_FLEETMUX_ACCOUNT_LOADED:-}" ]] && return 0; _FLEETMUX_ACCOUNT_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
@@ -15,13 +15,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
 # Central (source-of-truth) accounts dir — lives under the secrets dir.
 ACCOUNTS_SECRETS_DIR="${ACCOUNTS_SECRETS_DIR:-${SECRETS_DIR}/claude-accounts}"
 # Local deploy dir (on this machine, and mirrored to every remote host).
-ACCOUNTS_LOCAL_DIR="${HOME}/.aios-accounts"
-# Wrapper binary (committed to AIOS/bin, deployed to $HOME/.aios-claude).
-ACCOUNTS_WRAPPER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/aios-claude"
-ACCOUNTS_WRAPPER_DEST="${HOME}/.aios-claude"
+ACCOUNTS_LOCAL_DIR="${HOME}/.fleetmux-accounts"
+# Wrapper binary (committed to fleetmux/bin, deployed to $HOME/.fleetmux-claude).
+ACCOUNTS_WRAPPER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/fleetmux-claude"
+ACCOUNTS_WRAPPER_DEST="${HOME}/.fleetmux-claude"
 # Usage parser script (emits per-session JSON usage totals).
-USAGE_PARSER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/aios-usage-parser"
-USAGE_PARSER_DEST="${HOME}/.aios-usage-parser"
+USAGE_PARSER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/fleetmux-usage-parser"
+USAGE_PARSER_DEST="${HOME}/.fleetmux-usage-parser"
 # Metadata manifest — email, subscription tier, timestamps per account.
 ACCOUNTS_META_FILE="${ACCOUNTS_SECRETS_DIR}/accounts.json"
 
@@ -30,13 +30,13 @@ _account_meta_init() {
     [[ -f "$ACCOUNTS_META_FILE" ]] || echo '{}' > "$ACCOUNTS_META_FILE"
 }
 
-# Detect email + subscription by running the wrapper with AIOS_ACCOUNT set,
+# Detect email + subscription by running the wrapper with FLEETMUX_ACCOUNT set,
 # capturing claude auth status JSON. Returns JSON or empty on failure.
 _account_detect() {
     local name="$1"
     [[ -x "$ACCOUNTS_WRAPPER_DEST" ]] || return 1
     [[ -r "${ACCOUNTS_LOCAL_DIR}/${name}.token" ]] || return 1
-    AIOS_ACCOUNT="$name" "$ACCOUNTS_WRAPPER_DEST" auth status 2>/dev/null || return 1
+    FLEETMUX_ACCOUNT="$name" "$ACCOUNTS_WRAPPER_DEST" auth status 2>/dev/null || return 1
 }
 
 # Save metadata (email, subscription) for an account name.
@@ -190,7 +190,7 @@ account_remove() {
         local host
         host=$(registry_get_field "$session" "host")
         [[ -z "$host" ]] && continue
-        ssh -n -o ConnectTimeout=5 "$host" "rm -f ~/.aios-accounts/${name}.token" 2>/dev/null &
+        ssh -n -o ConnectTimeout=5 "$host" "rm -f ~/.fleetmux-accounts/${name}.token" 2>/dev/null &
     done < <(jq -r '.[] | select(.type == "remote") | .name' "$SESSIONS_FILE" 2>/dev/null)
     wait
 
@@ -241,17 +241,17 @@ account_sync() {
         for host in "${hosts[@]}"; do
             (
                 echo "→ $host"
-                ssh -o ConnectTimeout=8 -o BatchMode=yes "$host" 'mkdir -p ~/.aios-accounts && chmod 700 ~/.aios-accounts' 2>&1 |
+                ssh -o ConnectTimeout=8 -o BatchMode=yes "$host" 'mkdir -p ~/.fleetmux-accounts && chmod 700 ~/.fleetmux-accounts' 2>&1 |
                     sed "s/^/  /"
-                scp -q -o ConnectTimeout=8 "$ACCOUNTS_WRAPPER_SRC" "${host}:.aios-claude"
-                ssh -o ConnectTimeout=8 "$host" 'chmod +x ~/.aios-claude'
+                scp -q -o ConnectTimeout=8 "$ACCOUNTS_WRAPPER_SRC" "${host}:.fleetmux-claude"
+                ssh -o ConnectTimeout=8 "$host" 'chmod +x ~/.fleetmux-claude'
                 if [[ -f "$USAGE_PARSER_SRC" ]]; then
-                    scp -q -o ConnectTimeout=8 "$USAGE_PARSER_SRC" "${host}:.aios-usage-parser"
-                    ssh -o ConnectTimeout=8 "$host" 'chmod +x ~/.aios-usage-parser'
+                    scp -q -o ConnectTimeout=8 "$USAGE_PARSER_SRC" "${host}:.fleetmux-usage-parser"
+                    ssh -o ConnectTimeout=8 "$host" 'chmod +x ~/.fleetmux-usage-parser'
                 fi
                 for name in "${tokens[@]}"; do
-                    scp -q -o ConnectTimeout=8 "${ACCOUNTS_SECRETS_DIR}/${name}.token" "${host}:.aios-accounts/${name}.token"
-                    ssh -o ConnectTimeout=8 "$host" "chmod 600 ~/.aios-accounts/${name}.token"
+                    scp -q -o ConnectTimeout=8 "${ACCOUNTS_SECRETS_DIR}/${name}.token" "${host}:.fleetmux-accounts/${name}.token"
+                    ssh -o ConnectTimeout=8 "$host" "chmod 600 ~/.fleetmux-accounts/${name}.token"
                 done
                 echo "  $host ok"
             ) &

@@ -4,7 +4,7 @@ import { ArrowLeft, Play, Square, Server, Monitor } from 'lucide-react'
 import { api } from '../services/api'
 import { usePolling } from '../hooks/usePolling'
 import { TerminalView } from '../components/terminal/TerminalView'
-import type { AiosTask } from '../types/aios'
+import type { FleetmuxTask } from '../types/fleetmux'
 
 const stateStyles: Record<string, string> = {
   running: 'bg-success/20 text-success',
@@ -108,7 +108,7 @@ export function SessionPage() {
               Recent Tasks ({tasks.length})
             </summary>
             <div className="bg-card border border-border rounded-lg divide-y divide-border mt-2 max-h-40 overflow-y-auto">
-              {(tasks as AiosTask[]).map((t) => (
+              {(tasks as FleetmuxTask[]).map((t) => (
                 <div key={t.id} className="px-4 py-2 flex items-center gap-3">
                   <span
                     className={`w-2 h-2 rounded-full shrink-0 ${

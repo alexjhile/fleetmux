@@ -1,4 +1,4 @@
-import type { AiosSession, AiosTask, HealthData, AccountInfo, UsageCache, LimitsCache } from '../types/aios'
+import type { FleetmuxSession, FleetmuxTask, HealthData, AccountInfo, UsageCache, LimitsCache } from '../types/fleetmux'
 
 // In Tauri or production build, use absolute URL to the Express backend
 // In Vite dev, the proxy handles /api -> localhost:9035
@@ -23,8 +23,8 @@ async function post<T>(path: string, body?: Record<string, unknown>): Promise<T>
 
 export const api = {
   sessions: {
-    list: () => get<AiosSession[]>('/sessions'),
-    get: (name: string) => get<AiosSession & { recentTasks: AiosTask[] }>(`/sessions/${name}`),
+    list: () => get<FleetmuxSession[]>('/sessions'),
+    get: (name: string) => get<FleetmuxSession & { recentTasks: FleetmuxTask[] }>(`/sessions/${name}`),
     start: (name: string) => post<{ ok: boolean }>(`/sessions/${name}/start`),
     stop: (name: string) => post<{ ok: boolean }>(`/sessions/${name}/stop`),
     popout: (name: string) => post<{ ok: boolean }>(`/sessions/${name}/popout`),
@@ -32,7 +32,7 @@ export const api = {
   },
   tasks: {
     list: (session?: string, limit = 50) =>
-      get<AiosTask[]>(`/tasks?${session ? `session=${session}&` : ''}limit=${limit}`),
+      get<FleetmuxTask[]>(`/tasks?${session ? `session=${session}&` : ''}limit=${limit}`),
     dispatch: (session: string, task: string) =>
       post<{ ok: boolean; output: string }>('/tasks/dispatch', { session, task }),
     ssh: (session: string, command: string) =>

@@ -23,7 +23,7 @@ adopt → queue → drain → review
 1. **Adopt** — make a repo AFK-ready: it needs an autonomous run harness under `.sandcastle/` and the pipeline skills installed. The bundled **[`afk-workflow/`](afk-workflow/)** has the adoption checklist and a ready-to-copy template. Do this once per repo.
 2. **Queue** — turn intent into independently-grabbable issues: **`grill-me`** (stress-test the idea) → **`to-prd`** (write the spec) → **`to-issues`** (slice into tracer-bullet issues) → label them `ready-for-agent`.
 3. **Drain** — hand it to AFK and walk away: `fleetmux afk <session>` drains one repo's `ready-for-agent` queue; `fleetmux afk all` drains every opted-in repo in parallel (capped, default 3).
-4. **Review** — in the morning, read the briefing: per-run JSON sidecars under `.aios/afk-runs/` and the rows in `fleetmux history`. Surface what completed, what's stuck, what needs a human decision.
+4. **Review** — in the morning, read the briefing: per-run JSON sidecars under `.fleetmux/afk-runs/` and the rows in `fleetmux history`. Surface what completed, what's stuck, what needs a human decision.
 
 ## English → action (AFK-led)
 
@@ -34,7 +34,7 @@ adopt → queue → drain → review
 | "AFK all" / "night shift" / "drain everything" | `fleetmux afk all` (add `--concurrency N` to widen/narrow). |
 | "AFK billing" / "drain billing" | `fleetmux afk billing` |
 | "rerun #12 on billing" / "AFK billing #12" | `fleetmux afk billing 12` (single-issue debug mode) |
-| "what happened overnight?" / "morning briefing" | Summarise the sidecars in `.aios/afk-runs/` + `fleetmux history` — completed / stuck / needs-decision. |
+| "what happened overnight?" / "morning briefing" | Summarise the sidecars in `.fleetmux/afk-runs/` + `fleetmux history` — completed / stuck / needs-decision. |
 | "review the billing branch" / "ship it" | Use the auto-routed skills (`review`, `ship`) against that repo. |
 
 A session must opt in with `"afk_ready": true` in `sessions.json` before it can be drained.
@@ -66,12 +66,12 @@ Run `fleetmux help` for the full command list.
 
 ## Set this up as your controller session
 
-1. Pick a working directory — usually the parent folder holding your repos, so paths are short. Tell fleetmux: `export AIOS_CLAUDE_CODE_ROOT=~/code`.
+1. Pick a working directory — usually the parent folder holding your repos, so paths are short. Tell fleetmux: `export FLEETMUX_CLAUDE_CODE_ROOT=~/code`.
 2. Put this playbook where that session reads it — either **copy** this file into that dir as `CLAUDE.md`, or keep a short `CLAUDE.md` that says *"Act as the fleetmux controller — follow `<path>/fleetmux/HOMEBASE.md`."*
 3. (Optional) Register the controller so its memory is backed up with the rest:
    ```bash
    fleetmux add homebase local ~/code "Fleet controller"
-   export AIOS_CONTROLLER_SESSION=homebase
+   export FLEETMUX_CONTROLLER_SESSION=homebase
    ```
 4. Make sure the AFK prerequisites are installed once — see [`afk-workflow/docs/install.md`](afk-workflow/docs/install.md) (the pipeline skills + the `.sandcastle/` harness).
 5. Launch: double-click **`fleetmux.command`** (macOS) or open the **fleetmux** Windows Terminal profile (Windows/WSL). Either one opens the controller with the dashboard docked below. You can also just run `claude` in that directory.

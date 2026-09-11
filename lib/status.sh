@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
 # Status detection — check tmux pane state + git info
-[[ -n "${_AIOS_STATUS_LOADED:-}" ]] && return 0; _AIOS_STATUS_LOADED=1
+[[ -n "${_FLEETMUX_STATUS_LOADED:-}" ]] && return 0; _FLEETMUX_STATUS_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
 # Check if the fleetmux tmux session exists
 tmux_session_exists() {
-    $TMUX_CMD has-session -t "$AIOS_TMUX_SESSION" 2>/dev/null
+    $TMUX_CMD has-session -t "$FLEETMUX_TMUX_SESSION" 2>/dev/null
 }
 
 # Check if a specific window exists in the fleetmux session
 tmux_window_exists() {
     local name="$1"
-    $TMUX_CMD list-windows -t "$AIOS_TMUX_SESSION" -F '#{window_name}' 2>/dev/null | grep -qx "$name"
+    $TMUX_CMD list-windows -t "$FLEETMUX_TMUX_SESSION" -F '#{window_name}' 2>/dev/null | grep -qx "$name"
 }
 
 # Get the state of a session by reading tmux pane content
@@ -28,7 +28,7 @@ detect_session_state() {
 
     # Capture last 15 lines of the pane
     local pane_content
-    pane_content=$($TMUX_CMD capture-pane -t "${AIOS_TMUX_SESSION}:${name}" -p -S -15 2>/dev/null)
+    pane_content=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -15 2>/dev/null)
 
     if [[ -z "$pane_content" ]]; then
         echo "stopped"
@@ -128,7 +128,7 @@ get_last_task() {
 }
 
 # Check if a session has unsynced direct work
-# Compares Claude memory mtime to last AIOS task time
+# Compares Claude memory mtime to last fleetmux task time
 # Returns: "fresh" (direct work detected), "synced", or "unknown"
 check_direct_work() {
     local session="$1"
@@ -136,7 +136,7 @@ check_direct_work() {
     local path="$3"
     local host="${4:-}"
 
-    # Get last AIOS task time for this session
+    # Get last fleetmux task time for this session
     local last_task_ts=0
     if [[ -f "$TASKS_FILE" ]]; then
         local last_task_at

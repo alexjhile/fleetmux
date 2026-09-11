@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { KeyRound, ChevronDown } from 'lucide-react'
 import { api } from '../../services/api'
-import type { AccountInfo } from '../../types/aios'
+import type { AccountInfo } from '../../types/fleetmux'
 
 // Shared cache — avoid refetching from every card that mounts.
 let cachedAccounts: AccountInfo[] | null = null

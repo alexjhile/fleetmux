@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# aios-limits-probe — fetch subscription rate limits for an account.
+# fleetmux-limits-probe — fetch subscription rate limits for an account.
 #
 # Makes a minimal POST /v1/messages call (max_tokens=1, Haiku 4.5 = ~9 tokens
 # cost, roughly $0.00005 list) and parses the anthropic-ratelimit-unified-*
 # response headers. Outputs JSON with the rate-limit fields.
 #
-# Usage: aios-limits-probe <account-name>
+# Usage: fleetmux-limits-probe <account-name>
 #
-# Reads token from $HOME/.aios-accounts/<name>.token (same convention as
+# Reads token from $HOME/.fleetmux-accounts/<name>.token (same convention as
 # the wrapper). Intended to be called from lib/limits.sh.
 
 set -e
@@ -18,7 +18,7 @@ if [[ -z "$account" ]]; then
     exit 1
 fi
 
-token_file="${HOME}/.aios-accounts/${account}.token"
+token_file="${HOME}/.fleetmux-accounts/${account}.token"
 if [[ ! -r "$token_file" ]]; then
     echo "Error: token not found at $token_file" >&2
     exit 1

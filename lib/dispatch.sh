@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
 # Dispatch — send tasks to sessions (interactive or headless)
-[[ -n "${_AIOS_DISPATCH_LOADED:-}" ]] && return 0; _AIOS_DISPATCH_LOADED=1
+[[ -n "${_FLEETMUX_DISPATCH_LOADED:-}" ]] && return 0; _FLEETMUX_DISPATCH_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
@@ -25,7 +25,7 @@ dispatch_interactive() {
     fi
 
     # Send the task text followed by Enter
-    $TMUX_CMD send-keys -t "${AIOS_TMUX_SESSION}:${name}" "$task" Enter
+    $TMUX_CMD send-keys -t "${FLEETMUX_TMUX_SESSION}:${name}" "$task" Enter
 
     record_task "$name" "$task" "run" "dispatched"
     echo "Dispatched to '$name': $task"
@@ -45,7 +45,7 @@ dispatch_interactive_wait() {
     fi
 
     # Send the task
-    $TMUX_CMD send-keys -t "${AIOS_TMUX_SESSION}:${name}" "$task" Enter
+    $TMUX_CMD send-keys -t "${FLEETMUX_TMUX_SESSION}:${name}" "$task" Enter
     record_task "$name" "$task" "run" "dispatched"
     echo "Dispatched to '$name': $task"
     echo "Waiting for completion (timeout: ${timeout}s)..."
@@ -63,7 +63,7 @@ dispatch_interactive_wait() {
             echo ""
             echo "--- Output from '$name' ---"
             local output
-            output=$($TMUX_CMD capture-pane -t "${AIOS_TMUX_SESSION}:${name}" -p -S -100 2>/dev/null)
+            output=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -100 2>/dev/null)
             echo "$output"
             echo "--- End output ---"
             update_last_task "$name" "completed" "$elapsed" "$output"
@@ -136,7 +136,7 @@ dispatch_logs() {
     local lines="${2:-50}"
 
     if tmux_window_exists "$name"; then
-        $TMUX_CMD capture-pane -t "${AIOS_TMUX_SESSION}:${name}" -p -S "-${lines}"
+        $TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S "-${lines}"
         return
     fi
 

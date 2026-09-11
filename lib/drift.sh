@@ -3,7 +3,7 @@
 # Drift detection — compare local clones vs remote clones via origin
 # Hub-and-spoke model: origin is the single source of truth.
 # Local and Remote are spokes that should always match origin/main.
-[[ -n "${_AIOS_DRIFT_LOADED:-}" ]] && return 0; _AIOS_DRIFT_LOADED=1
+[[ -n "${_FLEETMUX_DRIFT_LOADED:-}" ]] && return 0; _FLEETMUX_DRIFT_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"

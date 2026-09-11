@@ -1,35 +1,45 @@
 #!/usr/bin/env bash
-# AIOS Configuration — constants, paths, env loading
-[[ -n "${_AIOS_CONFIG_LOADED:-}" ]] && return 0; _AIOS_CONFIG_LOADED=1
+# fleetmux configuration — constants, paths, env loading
+[[ -n "${_FLEETMUX_CONFIG_LOADED:-}" ]] && return 0; _FLEETMUX_CONFIG_LOADED=1
 
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/platform.sh"
 
-AIOS_DIR="${AIOS_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-# shellcheck disable=SC2034
-AIOS_TMUX_SESSION="aios"
+# fleetmux began as a personal tool called "AIOS"; keep honouring its AIOS_*
+# overrides for anyone who still exports them.
+for _v in DIR SECRETS_DIR CLAUDE_CODE_ROOT REMOTE_WRAPPER TMUX_SOCKET; do
+    _new="FLEETMUX_${_v}" _old="AIOS_${_v}"
+    if [[ -z "${!_new:-}" && -n "${!_old:-}" ]]; then
+        printf -v "$_new" '%s' "${!_old}"
+    fi
+done
+unset _v _new _old
 
-# Use explicit tmux socket when AIOS_TMUX_SOCKET is set (LaunchAgent compatibility)
-if [[ -z "${AIOS_TMUX_SOCKET:-}" ]]; then
+FLEETMUX_DIR="${FLEETMUX_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# shellcheck disable=SC2034
+FLEETMUX_TMUX_SESSION="fleetmux"
+
+# Use explicit tmux socket when FLEETMUX_TMUX_SOCKET is set (LaunchAgent compatibility)
+if [[ -z "${FLEETMUX_TMUX_SOCKET:-}" ]]; then
     _tmux_socket="/tmp/tmux-$(id -u)/default"
-    [[ -S "$_tmux_socket" ]] && AIOS_TMUX_SOCKET="$_tmux_socket"
+    [[ -S "$_tmux_socket" ]] && FLEETMUX_TMUX_SOCKET="$_tmux_socket"
 fi
 # shellcheck disable=SC2034
-TMUX_CMD="${AIOS_TMUX_SOCKET:+tmux -S "$AIOS_TMUX_SOCKET"}"
+TMUX_CMD="${FLEETMUX_TMUX_SOCKET:+tmux -S "$FLEETMUX_TMUX_SOCKET"}"
 TMUX_CMD="${TMUX_CMD:-tmux}"
-SESSIONS_FILE="${SESSIONS_FILE:-${AIOS_DIR}/sessions.json}"
-TASKS_FILE="${TASKS_FILE:-${AIOS_DIR}/tasks.json}"
+SESSIONS_FILE="${SESSIONS_FILE:-${FLEETMUX_DIR}/sessions.json}"
+TASKS_FILE="${TASKS_FILE:-${FLEETMUX_DIR}/tasks.json}"
 TASKS_MAX=500
 # Directory holding optional env files (e.g. hosts.env) and account tokens.
-SECRETS_DIR="${AIOS_SECRETS_DIR:-${HOME}/.config/fleetmux/secrets}"
+SECRETS_DIR="${FLEETMUX_SECRETS_DIR:-${HOME}/.config/fleetmux/secrets}"
 # Claude binary — ~/.local/bin may not be in tmux PATH
 # shellcheck disable=SC2034
 CLAUDE_BIN="${CLAUDE_BIN:-${HOME}/.local/bin/claude}"
-LOGS_DIR="${LOGS_DIR:-${AIOS_DIR}/logs}"
+LOGS_DIR="${LOGS_DIR:-${FLEETMUX_DIR}/logs}"
 # Parent directory that holds your local project checkouts. Used only to
 # shorten paths in status/health output and to detect the "home base" dir.
 # shellcheck disable=SC2034
-CLAUDE_CODE_ROOT="${AIOS_CLAUDE_CODE_ROOT:-${HOME}/code}"
+CLAUDE_CODE_ROOT="${FLEETMUX_CLAUDE_CODE_ROOT:-${HOME}/code}"
 
 # Ensure logs directory exists
 mkdir -p "$LOGS_DIR" 2>/dev/null

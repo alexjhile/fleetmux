@@ -17,9 +17,9 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { AiosSession } from '../../types/aios'
+import type { FleetmuxSession } from '../../types/fleetmux'
 
-const STORAGE_KEY = 'aios-sidebar-order'
+const STORAGE_KEY = 'fleetmux-sidebar-order'
 
 const stateColors = {
   running: 'bg-success',
@@ -32,7 +32,7 @@ function SortableSession({
   isActive,
   onOpenTerminal,
 }: {
-  session: AiosSession
+  session: FleetmuxSession
   isActive: boolean
   onOpenTerminal: (name: string) => void
 }) {
@@ -114,7 +114,7 @@ function SortableSession({
 }
 
 interface SidebarProps {
-  sessions: AiosSession[]
+  sessions: FleetmuxSession[]
   openTerminalCount: number
   onOpenTerminal: (name: string) => void
 }

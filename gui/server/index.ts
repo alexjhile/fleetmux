@@ -33,7 +33,7 @@ import {
   readModelGuardConfig,
   modelGuardToggle,
   modelGuardClear,
-} from './aios.js'
+} from './fleetmux.js'
 import { setupTerminalWs } from './terminal.js'
 import { setupAfkWs, listAfkSessions, listLogFiles, listAfkRuns } from './afk.js'
 import { listDir, readFile as readFsFile, openInVscode, filesRoot } from './files.js'
@@ -159,7 +159,7 @@ app.post('/api/sessions/:name/attach', (req, res) => {
   const { name } = req.params
   const socket = `/tmp/tmux-${process.getuid!()}/default`
   // Fire and forget — tmux select-window is instant, don't block on callback
-  execFile(TMUX_BIN, ['-S', socket, 'select-window', '-t', `aios:${name}`])
+  execFile(TMUX_BIN, ['-S', socket, 'select-window', '-t', `fleetmux:${name}`])
   res.json({ ok: true })
 })
 
@@ -197,8 +197,8 @@ app.post('/api/tasks/ssh', async (req, res) => {
 
 app.post('/api/actions/sync', async (_req, res) => {
   try {
-    const { aiosExec } = await import('./aios.js')
-    const output = await aiosExec('sync')
+    const { fleetmuxExec } = await import('./fleetmux.js')
+    const output = await fleetmuxExec('sync')
     res.json({ ok: true, output })
   } catch (err: unknown) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'Sync failed' })
@@ -207,8 +207,8 @@ app.post('/api/actions/sync', async (_req, res) => {
 
 app.post('/api/actions/drift-fix', async (_req, res) => {
   try {
-    const { aiosExec } = await import('./aios.js')
-    const output = await aiosExec('drift --fix')
+    const { fleetmuxExec } = await import('./fleetmux.js')
+    const output = await fleetmuxExec('drift --fix')
     res.json({ ok: true, output })
   } catch (err: unknown) {
     res.status(500).json({ error: err instanceof Error ? err.message : 'Drift fix failed' })
@@ -240,7 +240,7 @@ app.post('/api/sessions/:name/popout', async (req, res) => {
   const tmux = TMUX_BIN
   const socket = `/tmp/tmux-${process.getuid!()}/default`
 
-  // Script that joins the aios tmux session at this window, opened in a new
+  // Script that joins the fleetmux tmux session at this window, opened in a new
   // native terminal (Terminal.app on macOS, Windows Terminal under WSL).
   const scriptPath = `/tmp/fleetmux-terminal-${name}.${TERMINAL_SCRIPT_EXT}`
   const script = [
@@ -248,7 +248,7 @@ app.post('/api/sessions/:name/popout', async (req, res) => {
     `# fleetmux — ${name}`,
     `printf "\\e]0;fleetmux — ${name}\\a"`,  // set window title
     'clear',
-    `exec ${tmux} -S "${socket}" new-session -t aios \\; set-option destroy-unattached on \\; select-window -t "${name}"`,
+    `exec ${tmux} -S "${socket}" new-session -t fleetmux \\; set-option destroy-unattached on \\; select-window -t "${name}"`,
   ].join('\n')
 
   try {
@@ -369,10 +369,10 @@ app.get('*', (_req, res) => {
 // ── Start ─────────────────────────────────────────────────────────
 
 server.listen(PORT, () => {
-  console.log(`AIOS GUI server running on http://localhost:${PORT}`)
+  console.log(`fleetmux GUI server running on http://localhost:${PORT}`)
 
   // Clean up orphaned grouped tmux sessions from previous server instances
-  // These are aios-N sessions created by browser/popout terminals that weren't cleaned up
+  // These are fleetmux-N sessions created by browser/popout terminals that weren't cleaned up
   try {
     const socket = `/tmp/tmux-${process.getuid!()}/default`
     execCb(
@@ -380,7 +380,7 @@ server.listen(PORT, () => {
       (err, stdout) => {
         if (err || !stdout) return
         const orphans = stdout.trim().split('\n')
-          .filter((line) => /^aios-\d+ 0$/.test(line))
+          .filter((line) => /^fleetmux-\d+ 0$/.test(line))
           .map((line) => line.split(' ')[0])
         for (const name of orphans) {
           console.log(`[startup] killing orphaned grouped session: ${name}`)

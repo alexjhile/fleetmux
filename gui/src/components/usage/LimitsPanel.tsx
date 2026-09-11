@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Gauge, RefreshCw, AlertTriangle } from 'lucide-react'
 import { api } from '../../services/api'
-import type { LimitsCache, AccountLimits, LimitsWindow } from '../../types/aios'
+import type { LimitsCache, AccountLimits, LimitsWindow } from '../../types/fleetmux'
 import { Tip } from './Tip'
 
 function fmtPct(frac: number | null): string {

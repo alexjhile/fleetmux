@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for afk.sh — `aios afk` verb (slice 2: live dispatch)
+# Tests for afk.sh — `fleetmux afk` verb (slice 2: live dispatch)
 
 load test_helper
 
@@ -23,7 +23,7 @@ teardown() {
 # Stubs caffeinate + npx onto PATH and points testlocal's session path at a
 # fake repo containing .sandcastle/{loop,main}.ts. Each stub records its
 # argv (one per line) under $STUB_LOG_DIR for assertion. The npx stub also
-# writes a fake AFK sidecar to $AIOS_AFK_LOG when set, simulating loop.ts.
+# writes a fake AFK sidecar to $FLEETMUX_AFK_LOG when set, simulating loop.ts.
 
 afk_setup_live_session() {
     local mode="${1:-drain}"  # drain|missing-loop|missing-main
@@ -67,11 +67,11 @@ STUB
 # Capture argv (one line per arg) and emit a fake AFK sidecar so the
 # bash wrapper has something to summarise.
 { printf '%s\n' "$@"; } > "${STUB_LOG_DIR}/npx.argv"
-{ printf '%s\n' "AIOS_AFK_LOG=${AIOS_AFK_LOG:-}"; printf '%s\n' "AIOS_AFK_SESSION=${AIOS_AFK_SESSION:-}"; } > "${STUB_LOG_DIR}/npx.env"
-if [[ -n "${AIOS_AFK_LOG:-}" ]]; then
-    cat > "$AIOS_AFK_LOG" <<JSON
+{ printf '%s\n' "FLEETMUX_AFK_LOG=${FLEETMUX_AFK_LOG:-}"; printf '%s\n' "FLEETMUX_AFK_SESSION=${FLEETMUX_AFK_SESSION:-}"; } > "${STUB_LOG_DIR}/npx.env"
+if [[ -n "${FLEETMUX_AFK_LOG:-}" ]]; then
+    cat > "$FLEETMUX_AFK_LOG" <<JSON
 {
-  "session": "${AIOS_AFK_SESSION:-}",
+  "session": "${FLEETMUX_AFK_SESSION:-}",
   "mode": "drain",
   "started_at": "2026-05-08T12:00:00Z",
   "finished_at": "2026-05-08T12:30:00Z",
@@ -104,7 +104,7 @@ afk_teardown_live_session() {
 
 # ─── --help (CLI smoke) ──────────────────────────────────────────────────────
 
-@test "aios afk --help exits 0 and prints usage covering all three forms" {
+@test "fleetmux afk --help exits 0 and prints usage covering all three forms" {
     run "${BATS_TEST_DIRNAME}/../fleetmux" afk --help
     [[ "$status" -eq 0 ]]
     [[ "$output" == *"<session>"* ]]
@@ -183,11 +183,11 @@ afk_teardown_live_session() {
     [[ "$(echo "$npx_args" | sed -n 1p)" == "tsx" ]]
     [[ "$(echo "$npx_args" | sed -n 2p)" == ".sandcastle/loop.ts" ]]
 
-    # npx ran with AIOS_AFK_LOG + AIOS_AFK_SESSION exported
+    # npx ran with FLEETMUX_AFK_LOG + FLEETMUX_AFK_SESSION exported
     local npx_env
     npx_env=$(<"${STUB_LOG_DIR}/npx.env")
-    [[ "$npx_env" == *"AIOS_AFK_LOG="*"/.aios/afk-runs/testlocal-"*".json"* ]]
-    [[ "$npx_env" == *"AIOS_AFK_SESSION=testlocal"* ]]
+    [[ "$npx_env" == *"FLEETMUX_AFK_LOG="*"/.fleetmux/afk-runs/testlocal-"*".json"* ]]
+    [[ "$npx_env" == *"FLEETMUX_AFK_SESSION=testlocal"* ]]
 }
 
 @test "afk_run live one-shot invokes 'caffeinate -i npx tsx .sandcastle/main.ts <N>'" {
@@ -221,9 +221,9 @@ touch "${STUB_LOG_DIR}/powershell.released"
 STUB
     chmod +x "${STUB_DIR}/powershell.exe"
 
-    export AIOS_PLATFORM=wsl
+    export FLEETMUX_PLATFORM=wsl
     run afk_run "testlocal"
-    unset AIOS_PLATFORM
+    unset FLEETMUX_PLATFORM
     afk_teardown_live_session
 
     [[ "$status" -eq 0 ]]
@@ -245,7 +245,7 @@ STUB
     fi
     printf '#!/usr/bin/env bash\ncat >/dev/null\nexit 0\n' > "${STUB_DIR}/powershell.exe"
     chmod +x "${STUB_DIR}/powershell.exe"
-    export AIOS_PLATFORM=wsl
+    export FLEETMUX_PLATFORM=wsl
 
     run run_keepawake bash -c 'echo drained; exit 7'
     [[ "$status" -eq 7 ]]
@@ -260,9 +260,9 @@ STUB
         skip "host has a real caffeinate (macOS)"
     fi
 
-    export AIOS_PLATFORM=linux
+    export FLEETMUX_PLATFORM=linux
     run afk_run "testlocal"
-    unset AIOS_PLATFORM
+    unset FLEETMUX_PLATFORM
     afk_teardown_live_session
 
     [[ "$status" -eq 0 ]]
@@ -331,7 +331,7 @@ STUB
     [[ "$keys" == *"tickets_stuck"* ]]
 }
 
-@test "afk_run live drain writes a sidecar log under .aios/afk-runs/<session>-<ts>.json" {
+@test "afk_run live drain writes a sidecar log under .fleetmux/afk-runs/<session>-<ts>.json" {
     afk_setup_live_session drain
 
     run afk_run "testlocal"
@@ -339,7 +339,7 @@ STUB
 
     [[ "$status" -eq 0 ]]
 
-    local sidecar_dir="${AIOS_DIR}/.aios/afk-runs"
+    local sidecar_dir="${FLEETMUX_DIR}/.fleetmux/afk-runs"
     [[ -d "$sidecar_dir" ]]
 
     local count
@@ -387,18 +387,18 @@ STUB
     [[ "$(jq -r '.[0].task' "$TASKS_FILE")" == *"#42"* ]]
 }
 
-# ─── aios history: AFK row rendering ────────────────────────────────────────
+# ─── fleetmux history: AFK row rendering ────────────────────────────────────────
 
-@test "aios history renders AFK drain rows from tasks.json (one row per drain)" {
+@test "fleetmux history renders AFK drain rows from tasks.json (one row per drain)" {
     afk_setup_live_session drain
     run afk_run "testlocal"
     afk_teardown_live_session
     [[ "$status" -eq 0 ]]
 
-    # AIOS_DIR / SESSIONS_FILE / TASKS_FILE flow into the subprocess via the
+    # FLEETMUX_DIR / SESSIONS_FILE / TASKS_FILE flow into the subprocess via the
     # ${VAR:-default} pattern in config.sh.
     run env \
-        AIOS_DIR="$AIOS_DIR" \
+        FLEETMUX_DIR="$FLEETMUX_DIR" \
         SESSIONS_FILE="$SESSIONS_FILE" \
         TASKS_FILE="$TASKS_FILE" \
         LOGS_DIR="$LOGS_DIR" \
@@ -452,10 +452,10 @@ touch "\$marker"
 running=\$(find "\${STUB_LOG_DIR}/concurrent" -type f | wc -l | tr -d ' ')
 echo "\$running" >> "\${STUB_LOG_DIR}/concurrent.history"
 
-if [[ -n "\${AIOS_AFK_LOG:-}" ]]; then
-    cat > "\$AIOS_AFK_LOG" <<JSON
+if [[ -n "\${FLEETMUX_AFK_LOG:-}" ]]; then
+    cat > "\$FLEETMUX_AFK_LOG" <<JSON
 {
-  "session": "\${AIOS_AFK_SESSION:-}",
+  "session": "\${FLEETMUX_AFK_SESSION:-}",
   "mode": "drain",
   "started_at": "2026-05-08T12:00:00Z",
   "finished_at": "2026-05-08T12:30:00Z",
@@ -524,10 +524,10 @@ afk_teardown_all_session() {
 
     [[ "$status" -eq 0 ]]
 
-    # Each session got one sidecar written under .aios/afk-runs/
+    # Each session got one sidecar written under .fleetmux/afk-runs/
     local s1_sidecars s2_sidecars
-    s1_sidecars=$(find "${AIOS_DIR}/.aios/afk-runs" -name 'sess1-*.json' | wc -l | tr -d ' ')
-    s2_sidecars=$(find "${AIOS_DIR}/.aios/afk-runs" -name 'sess2-*.json' | wc -l | tr -d ' ')
+    s1_sidecars=$(find "${FLEETMUX_DIR}/.fleetmux/afk-runs" -name 'sess1-*.json' | wc -l | tr -d ' ')
+    s2_sidecars=$(find "${FLEETMUX_DIR}/.fleetmux/afk-runs" -name 'sess2-*.json' | wc -l | tr -d ' ')
     [[ "$s1_sidecars" -eq 1 ]]
     [[ "$s2_sidecars" -eq 1 ]]
 }
@@ -571,12 +571,12 @@ afk_teardown_all_session() {
 
     # sess1 was skipped — no sidecar in afk-runs, no concurrent marker fired
     local s1_sidecars
-    s1_sidecars=$(find "${AIOS_DIR}/.aios/afk-runs" -name 'sess1-*.json' 2>/dev/null | wc -l | tr -d ' ')
+    s1_sidecars=$(find "${FLEETMUX_DIR}/.fleetmux/afk-runs" -name 'sess1-*.json' 2>/dev/null | wc -l | tr -d ' ')
     [[ "$s1_sidecars" -eq 0 ]]
 
     # sess2 ran
     local s2_sidecars
-    s2_sidecars=$(find "${AIOS_DIR}/.aios/afk-runs" -name 'sess2-*.json' 2>/dev/null | wc -l | tr -d ' ')
+    s2_sidecars=$(find "${FLEETMUX_DIR}/.fleetmux/afk-runs" -name 'sess2-*.json' 2>/dev/null | wc -l | tr -d ' ')
     [[ "$s2_sidecars" -eq 1 ]]
 
     # Briefing reports both sessions: sess1 with halt_reason=queue-empty, sess2 ran
@@ -617,7 +617,7 @@ afk_teardown_all_session() {
 
     # No sidecar files written (no real run)
     local sidecars
-    sidecars=$(find "${AIOS_DIR}/.aios/afk-runs" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+    sidecars=$(find "${FLEETMUX_DIR}/.fleetmux/afk-runs" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
     [[ "$sidecars" -eq 0 ]]
 }
 
@@ -626,7 +626,7 @@ afk_teardown_all_session() {
 @test "afk_run errors with 'another drain' when lockfile already held" {
     afk_setup_live_session drain
 
-    local lock_dir="${AIOS_DIR}/.aios/locks"
+    local lock_dir="${FLEETMUX_DIR}/.fleetmux/locks"
     mkdir -p "${lock_dir}/afk-testlocal.lock"
 
     run afk_run "testlocal"
@@ -645,7 +645,7 @@ afk_teardown_all_session() {
 
     [[ "$status" -eq 0 ]]
 
-    local lock="${AIOS_DIR}/.aios/locks/afk-testlocal.lock"
+    local lock="${FLEETMUX_DIR}/.fleetmux/locks/afk-testlocal.lock"
     [[ ! -e "$lock" ]]
 }
 
@@ -660,7 +660,7 @@ sleep 30
 STUB
     chmod +x "${STUB_DIR}/npx"
 
-    local lock="${AIOS_DIR}/.aios/locks/afk-testlocal.lock"
+    local lock="${FLEETMUX_DIR}/.fleetmux/locks/afk-testlocal.lock"
 
     # Spawn afk_run in a subshell so we can signal it
     (

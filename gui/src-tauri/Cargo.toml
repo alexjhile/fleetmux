@@ -1,5 +1,5 @@
 [package]
-name = "aios-gui"
+name = "fleetmux-gui"
 version = "0.1.0"
 description = "fleetmux GUI — multiplex a fleet of coding-agent sessions"
 authors = ["Alex Hile"]

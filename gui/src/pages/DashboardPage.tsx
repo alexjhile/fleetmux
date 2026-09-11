@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Monitor, Server, Zap, Activity, GitBranch, AlertTriangle, RefreshCw, ArrowDownUp, TerminalSquare } from 'lucide-react'
-import type { AiosSession } from '../types/aios'
+import type { FleetmuxSession } from '../types/fleetmux'
 import { SessionCard } from '../components/sessions/SessionCard'
 import { api } from '../services/api'
 
-export function DashboardPage({ sessions, onRefresh }: { sessions: AiosSession[]; onRefresh: () => void }) {
+export function DashboardPage({ sessions, onRefresh }: { sessions: FleetmuxSession[]; onRefresh: () => void }) {
   const [syncing, setSyncing] = useState(false)
   const [driftFixing, setDriftFixing] = useState(false)
   const [showDirtySummary, setShowDirtySummary] = useState(false)

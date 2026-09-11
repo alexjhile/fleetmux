@@ -13,7 +13,7 @@ import { readdirSync, readFileSync, statSync, existsSync } from 'fs'
 import path from 'path'
 import { execFile } from 'child_process'
 
-const FS_ROOT = process.env.FS_ROOT || process.env.AIOS_CLAUDE_CODE_ROOT || process.env.HOME || process.cwd()
+const FS_ROOT = process.env.FS_ROOT || process.env.FLEETMUX_CLAUDE_CODE_ROOT || process.env.HOME || process.cwd()
 const MAX_PREVIEW_BYTES = 1024 * 1024  // 1 MB
 
 // Directories we never expand by default — they bloat the tree and are rarely the target.

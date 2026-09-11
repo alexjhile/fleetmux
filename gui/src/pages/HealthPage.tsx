@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { RefreshCw, Server, Monitor } from 'lucide-react'
 import { api } from '../services/api'
 import { usePolling } from '../hooks/usePolling'
-import type { HealthData } from '../types/aios'
+import type { HealthData } from '../types/fleetmux'
 
 export function HealthPage() {
   const [refreshing, setRefreshing] = useState(false)

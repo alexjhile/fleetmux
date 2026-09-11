@@ -4,7 +4,7 @@ import { FolderTree } from 'lucide-react'
 import { FileTree } from '../components/files/FileTree'
 import { FilePreview } from '../components/files/FilePreview'
 
-const SHOW_HIDDEN_KEY = 'aios-files-show-hidden'
+const SHOW_HIDDEN_KEY = 'fleetmux-files-show-hidden'
 
 export function FilesPage() {
   const [params, setParams] = useSearchParams()

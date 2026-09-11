@@ -2,7 +2,7 @@
 # shellcheck disable=SC1091
 # SSH — direct command execution on any session's machine
 # No Claude session needed — just runs a shell command and returns output
-[[ -n "${_AIOS_SSH_LOADED:-}" ]] && return 0; _AIOS_SSH_LOADED=1
+[[ -n "${_FLEETMUX_SSH_LOADED:-}" ]] && return 0; _FLEETMUX_SSH_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"

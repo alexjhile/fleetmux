@@ -89,12 +89,19 @@ case ":$PATH:" in
   *) warn "$HOME/bin is not on your PATH — add: export PATH=\"\$HOME/bin:\$PATH\"" ;;
 esac
 
-# `fleetmux start` launches Claude through ~/.aios-claude (the account-aware
+# `fleetmux start` launches Claude through ~/.fleetmux-claude (the account-aware
 # wrapper). Install it — plus the usage parser — locally, or every session
-# opens to "~/.aios-claude: No such file or directory". Idempotent; with no
+# opens to "~/.fleetmux-claude: No such file or directory". Idempotent; with no
 # named accounts the wrapper just uses Claude Code's own login.
+# Installs from before the AIOS→fleetmux rename: carry the account tokens
+# over and drop the old helper copies.
+if [[ -d "$HOME/.aios-accounts" && ! -e "$HOME/.fleetmux-accounts" ]]; then
+  mv "$HOME/.aios-accounts" "$HOME/.fleetmux-accounts"
+  ok "Moved ~/.aios-accounts -> ~/.fleetmux-accounts"
+fi
+rm -f "$HOME/.aios-claude" "$HOME/.aios-usage-parser"
 "$REPO_DIR/fleetmux" account sync local >/dev/null
-ok "Claude launch wrapper installed at ~/.aios-claude"
+ok "Claude launch wrapper installed at ~/.fleetmux-claude"
 
 # ── 2b. Windows integration (WSL only) ──────────────────────────────────────
 # Read a Windows environment variable from inside WSL.
@@ -290,7 +297,7 @@ if [ "$have_npm" -eq 1 ]; then
     # Detach every stdio of the whole subtree too: anything left holding
     # setup's stdout would keep `./setup.sh | tee log` waiting forever.
     setsid_bin=$(command -v setsid || true)
-    ( cd gui/server && AIOS_DIR="$REPO_DIR" ${setsid_bin:+"$setsid_bin"} nohup npx tsx index.ts >"$REPO_DIR/gui/server.log" 2>&1 </dev/null & ) >/dev/null 2>&1 </dev/null
+    ( cd gui/server && FLEETMUX_DIR="$REPO_DIR" ${setsid_bin:+"$setsid_bin"} nohup npx tsx index.ts >"$REPO_DIR/gui/server.log" 2>&1 </dev/null & ) >/dev/null 2>&1 </dev/null
     for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
       curl -sf "http://localhost:9035" >/dev/null 2>&1 && break
       sleep 0.5

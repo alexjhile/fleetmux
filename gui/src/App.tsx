@@ -13,8 +13,8 @@ import { FilesPage } from './pages/FilesPage'
 import { api } from './services/api'
 import { usePolling } from './hooks/usePolling'
 
-const TERMINALS_KEY = 'aios-open-terminals'
-const ACTIVE_TERMINAL_KEY = 'aios-active-terminal'
+const TERMINALS_KEY = 'fleetmux-open-terminals'
+const ACTIVE_TERMINAL_KEY = 'fleetmux-active-terminal'
 
 export default function App() {
   const location = useLocation()

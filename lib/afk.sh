@@ -7,7 +7,7 @@
 # .sandcastle/main.ts <N> (run one issue), wrapped in run_keepawake
 # (caffeinate -i on macOS, a Windows execution-state request under WSL) to
 # keep the machine awake. Each run records one row to tasks.json
-# and a per-run JSON sidecar under .aios/afk-runs/<session>-<unix-ts>.json.
+# and a per-run JSON sidecar under .fleetmux/afk-runs/<session>-<unix-ts>.json.
 #
 # Public functions:
 #   afk_help                          — print usage
@@ -15,7 +15,7 @@
 #                                     — drain queue or run one issue
 #   afk_all [--dry-run]               — broadcast across afk_ready sessions
 #   session_is_afk_ready <name>       — true iff sessions.json has afk_ready: true
-[[ -n "${_AIOS_AFK_LOADED:-}" ]] && return 0; _AIOS_AFK_LOADED=1
+[[ -n "${_FLEETMUX_AFK_LOADED:-}" ]] && return 0; _FLEETMUX_AFK_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
@@ -96,7 +96,7 @@ afk_run() {
 
     # Per-session lockfile prevents two drains racing on the same backlog.
     # mkdir is atomic; trap releases on normal exit and on signal.
-    local lock_dir="${AIOS_DIR}/.aios/locks"
+    local lock_dir="${FLEETMUX_DIR}/.fleetmux/locks"
     local lock="${lock_dir}/afk-${session}.lock"
     mkdir -p "$lock_dir"
     if ! mkdir "$lock" 2>/dev/null; then
@@ -136,7 +136,7 @@ afk_run() {
     fi
 
     # Sidecar dir + per-run filename
-    local runs_dir="${AIOS_DIR}/.aios/afk-runs"
+    local runs_dir="${FLEETMUX_DIR}/.fleetmux/afk-runs"
     mkdir -p "$runs_dir"
     local ts started_at
     ts=$(date +%s)
@@ -151,8 +151,8 @@ afk_run() {
 
     (
         cd "$session_path" || exit 1
-        export AIOS_AFK_SESSION="$session"
-        export AIOS_AFK_LOG="$sidecar"
+        export FLEETMUX_AFK_SESSION="$session"
+        export FLEETMUX_AFK_LOG="$sidecar"
         # Keep the host awake for the whole drain (no-op where unsupported).
         if [[ -n "$issue" ]]; then
             run_keepawake "$npx_bin" tsx "$script" "$issue"
@@ -400,7 +400,7 @@ afk_all() {
     done
 
     # Aggregate per-session sidecars into the morning briefing.
-    local runs_dir="${AIOS_DIR}/.aios/afk-runs"
+    local runs_dir="${FLEETMUX_DIR}/.fleetmux/afk-runs"
     local briefing='{"sessions": []}'
     for s in ${to_run[@]+"${to_run[@]}"}; do
         # Most recent sidecar for this session

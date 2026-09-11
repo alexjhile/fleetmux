@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { RefreshCw, Zap, Server, Monitor, KeyRound, ChevronDown, ChevronRight } from 'lucide-react'
 import { Tip } from '../components/usage/Tip'
 import { api } from '../services/api'
-import type { UsageCache, AccountInfo, AiosSession } from '../types/aios'
+import type { UsageCache, AccountInfo, FleetmuxSession } from '../types/fleetmux'
 import { UsageChart } from '../components/usage/UsageChart'
 import { SessionDrillDown } from '../components/usage/SessionDrillDown'
 import { LimitsPanel } from '../components/usage/LimitsPanel'
@@ -40,7 +40,7 @@ type SortKey = 'tokens_5m' | 'tokens_15m' | 'tokens_24h' | 'tokens_48h' | 'token
 export function UsagePage() {
   const [cache, setCache] = useState<UsageCache | null>(null)
   const [accounts, setAccounts] = useState<AccountInfo[]>([])
-  const [sessions, setSessions] = useState<AiosSession[]>([])
+  const [sessions, setSessions] = useState<FleetmuxSession[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('tokens_24h')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')

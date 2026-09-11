@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { api } from '../services/api'
 import { usePolling } from '../hooks/usePolling'
-import type { AiosTask } from '../types/aios'
+import type { FleetmuxTask } from '../types/fleetmux'
 
 const statusColors = {
   completed: 'bg-success',
@@ -24,7 +24,7 @@ export function HistoryPage() {
           className="bg-card border border-border rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-accent"
         >
           <option value="">All sessions</option>
-          {[...new Set((tasks || []).map((t: AiosTask) => t.session))].map((s) => (
+          {[...new Set((tasks || []).map((t: FleetmuxTask) => t.session))].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
@@ -43,7 +43,7 @@ export function HistoryPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {(tasks || []).map((t: AiosTask) => (
+            {(tasks || []).map((t: FleetmuxTask) => (
               <tr key={t.id} className="hover:bg-white/5">
                 <td className="px-4 py-2">
                   <span className={`inline-block w-2 h-2 rounded-full ${statusColors[t.status] || 'bg-gray-500'}`} />

@@ -2,7 +2,7 @@
 # shellcheck disable=SC1091,SC2059
 # Watch — live terminal dashboard with auto-refresh
 # VPS health cached every 60s, session state every cycle
-[[ -n "${_AIOS_WATCH_LOADED:-}" ]] && return 0; _AIOS_WATCH_LOADED=1
+[[ -n "${_FLEETMUX_WATCH_LOADED:-}" ]] && return 0; _FLEETMUX_WATCH_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
@@ -23,7 +23,7 @@ get_last_line() {
     fi
 
     local content
-    content=$(tmux capture-pane -t "${AIOS_TMUX_SESSION}:${name}" -p -S -5 2>/dev/null)
+    content=$(tmux capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -5 2>/dev/null)
 
     if [[ -z "$content" ]]; then
         echo "-"
@@ -186,7 +186,7 @@ draw_dashboard() {
 
     if tmux_session_exists; then
         local wcount
-        wcount=$(tmux list-windows -t "$AIOS_TMUX_SESSION" 2>/dev/null | wc -l | tr -d ' ')
+        wcount=$(tmux list-windows -t "$FLEETMUX_TMUX_SESSION" 2>/dev/null | wc -l | tr -d ' ')
         printf "    │  tmux: %s windows" "$wcount"
     fi
 

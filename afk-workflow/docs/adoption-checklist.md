@@ -11,7 +11,7 @@ Matt's skills are loaded by Claude Code at session startup, so they must be inst
 | Location | Install command | When |
 | --- | --- | --- |
 | **Local workstation (M1, dev laptop, etc.)** | `npx skills@latest add mattpocock/skills -y -g` | Once per machine, in [install.md](install.md) step 1 |
-| **Each VPS hosting a Claude Code session** | Same, run remotely via `aios ssh <vps> "..."` or your provisioning script | Per VPS, ideally baked into provisioning |
+| **Each VPS hosting a Claude Code session** | Same, run remotely via `fleetmux ssh <vps> "..."` or your provisioning script | Per VPS, ideally baked into provisioning |
 | **Sandcastle Docker containers** | `RUN npx -y skills@latest add mattpocock/skills -y -g` in the project's `.sandcastle/Dockerfile` | Once per image build (already in template) |
 
 If you skip any of these, that environment will have Claude Code but no skills — the agent there can read inlined skill prompts in `prompt.md` but can't invoke `/tdd`, `/grill-me`, etc. natively. You'll get degraded behaviour, silently.

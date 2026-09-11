@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
 # Registry CRUD — jq-based operations on sessions.json
-[[ -n "${_AIOS_REGISTRY_LOADED:-}" ]] && return 0; _AIOS_REGISTRY_LOADED=1
+[[ -n "${_FLEETMUX_REGISTRY_LOADED:-}" ]] && return 0; _FLEETMUX_REGISTRY_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 

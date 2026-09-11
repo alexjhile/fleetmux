@@ -2,7 +2,7 @@
 # shellcheck disable=SC1091,SC2059
 # Context — read a session's Claude Code memory, git state, and task history
 # This is the sync bridge between the controller and direct session work
-[[ -n "${_AIOS_CONTEXT_LOADED:-}" ]] && return 0; _AIOS_CONTEXT_LOADED=1
+[[ -n "${_FLEETMUX_CONTEXT_LOADED:-}" ]] && return 0; _FLEETMUX_CONTEXT_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"

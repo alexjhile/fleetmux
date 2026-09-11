@@ -2,7 +2,7 @@
 # shellcheck disable=SC1091,SC2059
 # Sync — auto-detect and pull context from sessions with direct work
 # Designed to run at conversation start — fast for synced sessions, pulls context for fresh ones
-[[ -n "${_AIOS_SYNC_LOADED:-}" ]] && return 0; _AIOS_SYNC_LOADED=1
+[[ -n "${_FLEETMUX_SYNC_LOADED:-}" ]] && return 0; _FLEETMUX_SYNC_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
@@ -11,7 +11,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/display.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/brain.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/drift.sh"
 
-SYNC_CACHE_DIR="${AIOS_DIR}/.sync-cache"
+SYNC_CACHE_DIR="${FLEETMUX_DIR}/.sync-cache"
 
 # Check VPS memory mtime via SSH (returns epoch timestamp)
 check_vps_memory_mtime() {
@@ -108,7 +108,7 @@ run_sync() {
         memory_ts=$(tr -d '[:space:]' < "$mtime_file" 2>/dev/null)
         [[ -z "$memory_ts" || "$memory_ts" == "0" ]] && continue
 
-        # Compare to last AIOS task
+        # Compare to last fleetmux task
         local last_task_ts=0
         if [[ -f "$TASKS_FILE" ]]; then
             local last_task_at

@@ -138,13 +138,13 @@ fleetmux is configured by `sessions.json` (copy `sessions.example.json`) plus en
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AIOS_DIR` | repo dir | Where fleetmux looks for `sessions.json`, `tasks.json`, `brain/`, `logs/` |
-| `AIOS_SECRETS_DIR` | `~/.config/fleetmux/secrets` | Optional `hosts.env` + account tokens live here |
-| `AIOS_CLAUDE_CODE_ROOT` | `~/code` | Parent dir of your local checkouts (used to shorten paths in output) |
-| `AIOS_REMOTE_WRAPPER` | `~/.aios-claude` | Path to the launch wrapper on remote hosts |
-| `AIOS_TMUX_SOCKET` | auto | Explicit tmux socket (useful under launchd/cron) |
+| `FLEETMUX_DIR` | repo dir | Where fleetmux looks for `sessions.json`, `tasks.json`, `brain/`, `logs/` |
+| `FLEETMUX_SECRETS_DIR` | `~/.config/fleetmux/secrets` | Optional `hosts.env` + account tokens live here |
+| `FLEETMUX_CLAUDE_CODE_ROOT` | `~/code` | Parent dir of your local checkouts (used to shorten paths in output) |
+| `FLEETMUX_REMOTE_WRAPPER` | `~/.fleetmux-claude` | Path to the launch wrapper on remote hosts |
+| `FLEETMUX_TMUX_SOCKET` | auto | Explicit tmux socket (useful under launchd/cron) |
 
-> Internal env vars and the tmux session name keep the `AIOS_`/`aios` prefix for historical reasons — fleetmux began life as a personal tool named "AIOS". They're functionally irrelevant to users.
+> fleetmux began as a personal tool called "AIOS". Old `AIOS_*` env var overrides are still honoured when the matching `FLEETMUX_*` one is unset.
 
 ### `sessions.json` schema
 
@@ -168,7 +168,7 @@ Only `name`, `type`, and `path` are required. Each session keeps one Claude conv
 
 ## Accounts
 
-fleetmux can route different sessions to different Claude accounts. Tokens (from `claude setup-token`) are stored under `$AIOS_SECRETS_DIR/claude-accounts/<name>.token`, deployed to each machine, and selected at launch by a wrapper that reads `$AIOS_ACCOUNT`. See `fleetmux account --help`.
+fleetmux can route different sessions to different Claude accounts. Tokens (from `claude setup-token`) are stored under `$FLEETMUX_SECRETS_DIR/claude-accounts/<name>.token`, deployed to each machine, and selected at launch by a wrapper that reads `$FLEETMUX_ACCOUNT`. See `fleetmux account --help`.
 
 ## Model guard
 
@@ -176,7 +176,7 @@ fleetmux can route different sessions to different Claude accounts. Tokens (from
 
 ## AFK (overnight autonomous runs)
 
-`fleetmux afk <session>` drains a project's `ready-for-agent` issue queue unattended. It expects the target repo to ship an autonomous run harness at `.sandcastle/loop.ts` (drain) / `.sandcastle/main.ts <issue#>` (single issue) and uses `glab` to probe the queue. Sessions must opt in with `"afk_ready": true`. `fleetmux afk all` broadcasts across all opted-in sessions (parallel-capped, default 3). Each run records a row in `tasks.json` and a JSON sidecar under `.aios/afk-runs/`.
+`fleetmux afk <session>` drains a project's `ready-for-agent` issue queue unattended. It expects the target repo to ship an autonomous run harness at `.sandcastle/loop.ts` (drain) / `.sandcastle/main.ts <issue#>` (single issue) and uses `glab` to probe the queue. Sessions must opt in with `"afk_ready": true`. `fleetmux afk all` broadcasts across all opted-in sessions (parallel-capped, default 3). Each run records a row in `tasks.json` and a JSON sidecar under `.fleetmux/afk-runs/`.
 
 The workflow and a ready-to-copy harness template are bundled in **[`afk-workflow/`](afk-workflow/)** — start with `afk-workflow/docs/adoption-checklist.md` and copy `afk-workflow/docs/sandcastle-template/` into your project's `.sandcastle/`.
 

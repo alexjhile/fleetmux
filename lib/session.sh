@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
 # Session lifecycle — start/stop/attach via tmux
-[[ -n "${_AIOS_SESSION_LOADED:-}" ]] && return 0; _AIOS_SESSION_LOADED=1
+[[ -n "${_FLEETMUX_SESSION_LOADED:-}" ]] && return 0; _FLEETMUX_SESSION_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
@@ -10,7 +10,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/status.sh"
 # Ensure the fleetmux tmux session exists
 ensure_tmux_session() {
     if ! tmux_session_exists; then
-        $TMUX_CMD new-session -d -s "$AIOS_TMUX_SESSION" -n "_control"
+        $TMUX_CMD new-session -d -s "$FLEETMUX_TMUX_SESSION" -n "_control"
     fi
 }
 
@@ -44,27 +44,27 @@ session_start() {
         return 1
     }
     flags="${flags//--continue/}"
-    # Wrapper paths — local $HOME, and ~/.aios-claude on remote hosts (the
+    # Wrapper paths — local $HOME, and ~/.fleetmux-claude on remote hosts (the
     # remote shell expands ~ to the remote user's home). Override the remote
-    # path with AIOS_REMOTE_WRAPPER if your hosts install it elsewhere.
-    wrapper_local="${HOME}/.aios-claude"
-    wrapper_remote="${AIOS_REMOTE_WRAPPER:-~/.aios-claude}"
+    # path with FLEETMUX_REMOTE_WRAPPER if your hosts install it elsewhere.
+    wrapper_local="${HOME}/.fleetmux-claude"
+    wrapper_remote="${FLEETMUX_REMOTE_WRAPPER:-~/.fleetmux-claude}"
 
     case "$type" in
         local|utility)
-            # Launch claude via ~/.aios-claude wrapper with AIOS_ACCOUNT set
+            # Launch claude via ~/.fleetmux-claude wrapper with FLEETMUX_ACCOUNT set
             # so the wrapper can export the right OAuth token. Empty account
             # falls through to Claude Code's own stored login.
-            $TMUX_CMD new-window -t "$AIOS_TMUX_SESSION" -n "$name" \
-                "cd '${path}' && { AIOS_ACCOUNT='${account}' '${wrapper_local}' --resume ${conv} ${flags} || AIOS_ACCOUNT='${account}' '${wrapper_local}' --session-id ${conv} ${flags}; }; bash"
+            $TMUX_CMD new-window -t "$FLEETMUX_TMUX_SESSION" -n "$name" \
+                "cd '${path}' && { FLEETMUX_ACCOUNT='${account}' '${wrapper_local}' --resume ${conv} ${flags} || FLEETMUX_ACCOUNT='${account}' '${wrapper_local}' --session-id ${conv} ${flags}; }; bash"
             ;;
         remote)
             # SSH to the host, reconnect to existing tmux session or create one.
-            # Launches claude via the ~/.aios-claude wrapper which reads
-            # AIOS_ACCOUNT and exports CLAUDE_CODE_OAUTH_TOKEN from the matching
-            # ~/.aios-accounts/<name>.token file.
-            $TMUX_CMD new-window -t "$AIOS_TMUX_SESSION" -n "$name" \
-                "ssh -t ${host} \"tmux has-session -t ${name} 2>/dev/null && tmux attach -t ${name} || tmux new-session -s ${name} -c '${path}' 'AIOS_ACCOUNT=${account} ${wrapper_remote} --resume ${conv} ${flags} || AIOS_ACCOUNT=${account} ${wrapper_remote} --session-id ${conv} ${flags}; bash'\""
+            # Launches claude via the ~/.fleetmux-claude wrapper which reads
+            # FLEETMUX_ACCOUNT and exports CLAUDE_CODE_OAUTH_TOKEN from the matching
+            # ~/.fleetmux-accounts/<name>.token file.
+            $TMUX_CMD new-window -t "$FLEETMUX_TMUX_SESSION" -n "$name" \
+                "ssh -t ${host} \"tmux has-session -t ${name} 2>/dev/null && tmux attach -t ${name} || tmux new-session -s ${name} -c '${path}' 'FLEETMUX_ACCOUNT=${account} ${wrapper_remote} --resume ${conv} ${flags} || FLEETMUX_ACCOUNT=${account} ${wrapper_remote} --session-id ${conv} ${flags}; bash'\""
             ;;
     esac
 
@@ -89,7 +89,7 @@ session_stop() {
         ssh -o ConnectTimeout=5 "$host" "tmux kill-session -t '$name' 2>/dev/null" &>/dev/null &
     fi
 
-    $TMUX_CMD kill-window -t "${AIOS_TMUX_SESSION}:${name}" 2>/dev/null
+    $TMUX_CMD kill-window -t "${FLEETMUX_TMUX_SESSION}:${name}" 2>/dev/null
     echo "Stopped session '$name'"
 }
 
@@ -102,7 +102,7 @@ session_attach() {
         return 1
     fi
 
-    $TMUX_CMD select-window -t "${AIOS_TMUX_SESSION}:${name}"
+    $TMUX_CMD select-window -t "${FLEETMUX_TMUX_SESSION}:${name}"
 }
 
 # Start all sessions with autostart=true (or all with --all flag)
@@ -135,7 +135,7 @@ session_stop_all() {
     fi
 
     local windows
-    windows=$($TMUX_CMD list-windows -t "$AIOS_TMUX_SESSION" -F '#{window_name}' 2>/dev/null)
+    windows=$($TMUX_CMD list-windows -t "$FLEETMUX_TMUX_SESSION" -F '#{window_name}' 2>/dev/null)
 
     while IFS= read -r name; do
         [[ -z "$name" || "$name" == "_control" ]] && continue
@@ -143,6 +143,6 @@ session_stop_all() {
     done <<< "$windows"
 
     # Kill the control window and session
-    $TMUX_CMD kill-session -t "$AIOS_TMUX_SESSION" 2>/dev/null
+    $TMUX_CMD kill-session -t "$FLEETMUX_TMUX_SESSION" 2>/dev/null
     echo "All sessions stopped"
 }

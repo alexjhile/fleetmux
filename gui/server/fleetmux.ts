@@ -5,10 +5,10 @@ import os from 'os'
 
 const HOME_DIR = process.env.HOME || os.homedir()
 // Repo root holding the fleetmux CLI + sessions.json. This server lives in
-// <repo>/gui/server, so the default is two levels up. Override with AIOS_DIR.
-const AIOS_DIR = process.env.AIOS_DIR || path.resolve(import.meta.dirname, '..', '..')
-const AIOS_CLI = process.env.AIOS_CLI || path.join(AIOS_DIR, 'fleetmux')
-const TMUX_SESSION = 'aios'
+// <repo>/gui/server, so the default is two levels up. Override with FLEETMUX_DIR.
+const FLEETMUX_DIR = process.env.FLEETMUX_DIR || path.resolve(import.meta.dirname, '..', '..')
+const FLEETMUX_CLI = process.env.FLEETMUX_CLI || path.join(FLEETMUX_DIR, 'fleetmux')
+const TMUX_SESSION = 'fleetmux'
 
 // Ensure tmux/git/ssh work when started via a minimal-env launcher (e.g. launchd).
 const TMUX_SOCKET = `/tmp/tmux-${process.getuid!()}/default`
@@ -24,12 +24,12 @@ const EXEC_ENV: Record<string, string> = {
   ...(process.env.SSH_AUTH_SOCK ? { SSH_AUTH_SOCK: process.env.SSH_AUTH_SOCK } : {}),
 }
 
-const SESSIONS_FILE = path.join(AIOS_DIR, 'sessions.json')
-const TASKS_FILE = path.join(AIOS_DIR, 'tasks.json')
-const USAGE_CACHE_FILE = path.join(AIOS_DIR, 'usage-cache.json')
-const LIMITS_CACHE_FILE = path.join(AIOS_DIR, 'limits-cache.json')
+const SESSIONS_FILE = path.join(FLEETMUX_DIR, 'sessions.json')
+const TASKS_FILE = path.join(FLEETMUX_DIR, 'tasks.json')
+const USAGE_CACHE_FILE = path.join(FLEETMUX_DIR, 'usage-cache.json')
+const LIMITS_CACHE_FILE = path.join(FLEETMUX_DIR, 'limits-cache.json')
 const ACCOUNTS_MANIFEST = path.join(
-  process.env.AIOS_SECRETS_DIR || path.join(HOME_DIR, '.config', 'fleetmux', 'secrets'),
+  process.env.FLEETMUX_SECRETS_DIR || path.join(HOME_DIR, '.config', 'fleetmux', 'secrets'),
   'claude-accounts',
   'accounts.json'
 )
@@ -135,13 +135,13 @@ export function getAccountsList(): AccountInfo[] {
 export async function setSessionAccount(session: string, account: string): Promise<void> {
   // Empty string clears the account (uses default auth).
   const cmd = account
-    ? `${AIOS_CLI} account set ${JSON.stringify(session)} ${JSON.stringify(account)}`
-    : `${AIOS_CLI} account unset ${JSON.stringify(session)}`
+    ? `${FLEETMUX_CLI} account set ${JSON.stringify(session)} ${JSON.stringify(account)}`
+    : `${FLEETMUX_CLI} account unset ${JSON.stringify(session)}`
   await execAsync(cmd, 8000)
 }
 
 export async function refreshUsage(): Promise<void> {
-  await execAsync(`${AIOS_CLI} usage refresh`, 60000)
+  await execAsync(`${FLEETMUX_CLI} usage refresh`, 60000)
 }
 
 // ── Subscription Limits (5h / 7d from Anthropic headers) ─────────
@@ -180,7 +180,7 @@ export function readLimitsCache(): LimitsCache | null {
 }
 
 export async function refreshLimits(): Promise<void> {
-  await execAsync(`${AIOS_CLI} account limits refresh`, 30000)
+  await execAsync(`${FLEETMUX_CLI} account limits refresh`, 30000)
 }
 
 // ── Model Guard ───────────────────────────────────────────────────
@@ -195,7 +195,7 @@ export interface ModelGuardState {
 
 export function readModelGuardState(): ModelGuardState {
   try {
-    return JSON.parse(readFileSync(path.join(AIOS_DIR, 'model-guard-state.json'), 'utf-8'))
+    return JSON.parse(readFileSync(path.join(FLEETMUX_DIR, 'model-guard-state.json'), 'utf-8'))
   } catch {
     return {}
   }
@@ -204,7 +204,7 @@ export function readModelGuardState(): ModelGuardState {
 export function readModelGuardConfig() {
   const defaults = { enabled: true, curve: 7.5, min_usage: 0.50, haiku_usage: 0.85, emergency_usage: 0.95, restore_usage: 0.40, restore_hours: 0.5 }
   try {
-    const cfg = JSON.parse(readFileSync(path.join(AIOS_DIR, 'model-guard-config.json'), 'utf-8'))
+    const cfg = JSON.parse(readFileSync(path.join(FLEETMUX_DIR, 'model-guard-config.json'), 'utf-8'))
     return { ...defaults, ...cfg, enabled: cfg.enabled !== false }
   } catch {
     return defaults
@@ -212,11 +212,11 @@ export function readModelGuardConfig() {
 }
 
 export async function modelGuardToggle(enable: boolean): Promise<void> {
-  await execAsync(`${AIOS_CLI} model-guard ${enable ? 'on' : 'off'}`, 5000)
+  await execAsync(`${FLEETMUX_CLI} model-guard ${enable ? 'on' : 'off'}`, 5000)
 }
 
 export async function modelGuardClear(): Promise<void> {
-  await execAsync(`${AIOS_CLI} model-guard clear`, 5000)
+  await execAsync(`${FLEETMUX_CLI} model-guard clear`, 5000)
 }
 
 export function readSessions(): SessionConfig[] {
@@ -665,17 +665,17 @@ export function captureLogs(name: string, lines = 80): string {
   }
 }
 
-// ── AIOS CLI Wrappers ─────────────────────────────────────────────
+// ── fleetmux CLI Wrappers ─────────────────────────────────────────────
 
-export function aiosExec(command: string): Promise<string> {
+export function fleetmuxExec(command: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    console.log(`[aios] exec: ${AIOS_CLI} ${command}`)
-    exec(`${AIOS_CLI} ${command}`, { timeout: 30000, env: EXEC_ENV }, (err, stdout, stderr) => {
+    console.log(`[fleetmux] exec: ${FLEETMUX_CLI} ${command}`)
+    exec(`${FLEETMUX_CLI} ${command}`, { timeout: 30000, env: EXEC_ENV }, (err, stdout, stderr) => {
       if (err) {
-        console.log(`[aios] error: ${stderr || err.message}`)
+        console.log(`[fleetmux] error: ${stderr || err.message}`)
         reject(new Error(stderr || err.message))
       } else {
-        console.log(`[aios] ok: ${stdout.trim()}`)
+        console.log(`[fleetmux] ok: ${stdout.trim()}`)
         resolve(stdout)
       }
     })
@@ -683,11 +683,11 @@ export function aiosExec(command: string): Promise<string> {
 }
 
 export function startSession(name: string) {
-  return aiosExec(`start ${name}`)
+  return fleetmuxExec(`start ${name}`)
 }
 
 export function stopSession(name: string) {
-  return aiosExec(`stop ${name}`)
+  return fleetmuxExec(`stop ${name}`)
 }
 
 // Shell-escape a string for safe embedding in double quotes
@@ -696,11 +696,11 @@ function shellEscape(s: string): string {
 }
 
 export function dispatchTask(name: string, task: string) {
-  return aiosExec(`run ${name} "${shellEscape(task)}"`)
+  return fleetmuxExec(`run ${name} "${shellEscape(task)}"`)
 }
 
 export function sshCommand(name: string, command: string) {
-  return aiosExec(`ssh ${name} "${shellEscape(command)}"`)
+  return fleetmuxExec(`ssh ${name} "${shellEscape(command)}"`)
 }
 
 // ── Health ─────────────────────────────────────────────────────────

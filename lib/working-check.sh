@@ -16,14 +16,14 @@
 #   fleetmux working-check --all          — check all running sessions
 #   fleetmux working-bootstrap <session>  — print bootstrap text to paste after /clear
 
-[[ -n "${_AIOS_WORKING_CHECK_LOADED:-}" ]] && return 0
-_AIOS_WORKING_CHECK_LOADED=1
+[[ -n "${_FLEETMUX_WORKING_CHECK_LOADED:-}" ]] && return 0
+_FLEETMUX_WORKING_CHECK_LOADED=1
 
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/platform.sh"
 
-AIOS_ROOT="${AIOS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-SESSIONS_JSON="${SESSIONS_FILE:-${AIOS_ROOT}/sessions.json}"
+FLEETMUX_ROOT="${FLEETMUX_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SESSIONS_JSON="${SESSIONS_FILE:-${FLEETMUX_ROOT}/sessions.json}"
 
 # Max minutes WORKING.md can be untouched before /clear is blocked.
 WORKING_STALE_MIN="${WORKING_STALE_MIN:-30}"
@@ -37,10 +37,10 @@ working_path_for() {
 
     [[ "$sess_type" != "local" ]] && return 2  # remote not yet supported
     [[ -z "$sess_path" || "$sess_path" == "null" ]] && {
-        # The controller session (AIOS_CONTROLLER_SESSION) may have a null
+        # The controller session (FLEETMUX_CONTROLLER_SESSION) may have a null
         # path — fall back to the projects root (CLAUDE_CODE_ROOT) for its
         # WORKING.md.
-        if [[ -n "${AIOS_CONTROLLER_SESSION:-}" && "$session" == "${AIOS_CONTROLLER_SESSION}" ]]; then
+        if [[ -n "${FLEETMUX_CONTROLLER_SESSION:-}" && "$session" == "${FLEETMUX_CONTROLLER_SESSION}" ]]; then
             echo "${CLAUDE_CODE_ROOT:-$HOME}/WORKING.md"
             return 0
         fi
@@ -113,7 +113,7 @@ You just /cleared. Rehydrate context now:
 2. Read $path (current state — what was in flight, blockers, decisions)
 3. Read MEMORY.md index in your memory dir, then any topic file referenced by WORKING.md
 4. Run \`git status\` and \`git log --oneline -10\` in your cwd
-5. Run \`tmux capture-pane -t aios:<dependent-session> -p | tail -20\` for any dependent sessions named in WORKING.md "in flight"
+5. Run \`tmux capture-pane -t fleetmux:<dependent-session> -p | tail -20\` for any dependent sessions named in WORKING.md "in flight"
 
 Then continue from WORKING.md "CURRENT FOCUS" + "IN FLIGHT". Update WORKING.md after each meaningful action — that's the durability contract.
 

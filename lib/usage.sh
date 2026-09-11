@@ -7,15 +7,15 @@
 # cache_creation_input_tokens, cache_read_input_tokens, output_tokens. We sum
 # those across every conversation file to produce a per-session total.
 #
-# Results are cached in AIOS/usage-cache.json so the dashboard can read
+# Results are cached in fleetmux/usage-cache.json so the dashboard can read
 # instantly. Refreshed by `fleetmux usage refresh` or on `fleetmux sync`.
-[[ -n "${_AIOS_USAGE_LOADED:-}" ]] && return 0; _AIOS_USAGE_LOADED=1
+[[ -n "${_FLEETMUX_USAGE_LOADED:-}" ]] && return 0; _FLEETMUX_USAGE_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
 
-USAGE_CACHE_FILE="${AIOS_DIR}/usage-cache.json"
-USAGE_PARSER_LOCAL="${HOME}/.aios-usage-parser"
+USAGE_CACHE_FILE="${FLEETMUX_DIR}/usage-cache.json"
+USAGE_PARSER_LOCAL="${HOME}/.fleetmux-usage-parser"
 USAGE_ZERO='{"turns":0,"input_tokens":0,"cache_creation_tokens":0,"cache_read_tokens":0,"output_tokens":0,"total_tokens":0,"tokens_5m":0,"tokens_15m":0,"tokens_24h":0,"tokens_48h":0,"tokens_7d":0,"turns_5m":0,"turns_15m":0,"turns_24h":0,"turns_48h":0,"turns_7d":0,"conversations":0,"last_activity":null}'
 
 _usage_jq_agg='[.[] | select(.type == "assistant" and .message.usage) | .message.usage] | {output_tokens: (map(.output_tokens // 0) | add // 0), input_tokens: (map(.input_tokens // 0) | add // 0), total_tokens: (map((.input_tokens // 0) + (.output_tokens // 0)) | add // 0)}'
@@ -27,7 +27,7 @@ usage_slug() {
     printf '%s' "$path" | tr '/_.' '---'
 }
 
-# Parse a local AIOS session by shelling out to the deployed parser script.
+# Parse a local fleetmux session by shelling out to the deployed parser script.
 usage_for_local_session() {
     local session="$1"
     local path slug
@@ -53,7 +53,7 @@ usage_for_remote_session() {
     # registry_list_names feed). Without -n it silently eats unread input.
     # shellcheck disable=SC2088
     ssh -n -o ConnectTimeout=5 -o BatchMode=yes "$host" \
-        "~/.aios-usage-parser $(printf '%q' "$slug")" 2>/dev/null || echo "$USAGE_ZERO"
+        "~/.fleetmux-usage-parser $(printf '%q' "$slug")" 2>/dev/null || echo "$USAGE_ZERO"
 }
 
 # Refresh the usage cache for every session.

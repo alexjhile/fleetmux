@@ -5,11 +5,11 @@
 # Always call these instead of raw `date -j`, `date -d`, `stat -f` or
 # `stat -c`: each of those flags means something different (or nothing) on
 # the other platform, and the failures are silent.
-[[ -n "${_AIOS_PLATFORM_LOADED:-}" ]] && return 0; _AIOS_PLATFORM_LOADED=1
+[[ -n "${_FLEETMUX_PLATFORM_LOADED:-}" ]] && return 0; _FLEETMUX_PLATFORM_LOADED=1
 
 # GNU date/stat answer --version; the BSD ones reject it. Probe once.
-if date --version >/dev/null 2>&1; then _AIOS_GNU_DATE=1; else _AIOS_GNU_DATE=0; fi
-if stat --version >/dev/null 2>&1; then _AIOS_GNU_STAT=1; else _AIOS_GNU_STAT=0; fi
+if date --version >/dev/null 2>&1; then _FLEETMUX_GNU_DATE=1; else _FLEETMUX_GNU_DATE=0; fi
+if stat --version >/dev/null 2>&1; then _FLEETMUX_GNU_STAT=1; else _FLEETMUX_GNU_STAT=0; fi
 
 # iso_to_epoch <YYYY-MM-DDTHH:MM:SSZ>
 # UTC ISO-8601 timestamp (the format tasks.json uses) → epoch seconds.
@@ -17,7 +17,7 @@ if stat --version >/dev/null 2>&1; then _AIOS_GNU_STAT=1; else _AIOS_GNU_STAT=0;
 iso_to_epoch() {
     local ts="${1:-}" out="" re='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
     if [[ "$ts" =~ $re ]]; then
-        if [[ "$_AIOS_GNU_DATE" == 1 ]]; then
+        if [[ "$_FLEETMUX_GNU_DATE" == 1 ]]; then
             out=$(date -u -d "$ts" +%s 2>/dev/null)
         else
             out=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null)
@@ -32,7 +32,7 @@ iso_to_epoch() {
 local_datetime_to_epoch() {
     local dt="${1:-}" out="" re='^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'
     if [[ "$dt" =~ $re ]]; then
-        if [[ "$_AIOS_GNU_DATE" == 1 ]]; then
+        if [[ "$_FLEETMUX_GNU_DATE" == 1 ]]; then
             out=$(date -d "$dt" +%s 2>/dev/null)
         else
             out=$(date -j -f "%Y-%m-%d %H:%M:%S" "$dt" +%s 2>/dev/null)
@@ -45,7 +45,7 @@ local_datetime_to_epoch() {
 # Format epoch seconds in local time. Prints nothing on failure.
 epoch_fmt() {
     local epoch="$1" fmt="$2"
-    if [[ "$_AIOS_GNU_DATE" == 1 ]]; then
+    if [[ "$_FLEETMUX_GNU_DATE" == 1 ]]; then
         date -d "@${epoch}" "$fmt" 2>/dev/null
     else
         date -r "$epoch" "$fmt" 2>/dev/null
@@ -56,7 +56,7 @@ epoch_fmt() {
 # Modification time as epoch seconds; 0 if the file is missing/unreadable.
 file_mtime() {
     local out
-    if [[ "$_AIOS_GNU_STAT" == 1 ]]; then
+    if [[ "$_FLEETMUX_GNU_STAT" == 1 ]]; then
         out=$(stat -c %Y "$1" 2>/dev/null)
     else
         out=$(stat -f %m "$1" 2>/dev/null)
@@ -66,9 +66,9 @@ file_mtime() {
 
 # platform_is_wsl
 # True when running inside WSL (i.e. fleetmux on a Windows host).
-# AIOS_PLATFORM=wsl|linux|macos overrides detection (tests, odd kernels).
+# FLEETMUX_PLATFORM=wsl|linux|macos overrides detection (tests, odd kernels).
 platform_is_wsl() {
-    case "${AIOS_PLATFORM:-}" in
+    case "${FLEETMUX_PLATFORM:-}" in
         wsl) return 0 ;;
         ?*)  return 1 ;;
     esac

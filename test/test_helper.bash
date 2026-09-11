@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test helper — shared setup/teardown for all AIOS bats tests
+# Test helper — shared setup/teardown for all fleetmux bats tests
 
 common_setup() {
     export TEST_DIR
@@ -13,12 +13,12 @@ common_setup() {
     LIB_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/../lib" && pwd)"
     export LIB_DIR
 
-    # Source config.sh first (it sets AIOS_DIR from its own location)
-    unset _AIOS_CONFIG_LOADED _AIOS_REGISTRY_LOADED _AIOS_DISPLAY_LOADED _AIOS_BRAIN_LOADED
+    # Source config.sh first (it sets FLEETMUX_DIR from its own location)
+    unset _FLEETMUX_CONFIG_LOADED _FLEETMUX_REGISTRY_LOADED _FLEETMUX_DISPLAY_LOADED _FLEETMUX_BRAIN_LOADED
     source "${LIB_DIR}/config.sh"
 
     # NOW override all paths to use test directory
-    export AIOS_DIR="$TEST_DIR"
+    export FLEETMUX_DIR="$TEST_DIR"
     export SESSIONS_FILE="${TEST_DIR}/sessions.json"
     export TASKS_FILE="${TEST_DIR}/tasks.json"
     export TASKS_MAX=500
@@ -37,7 +37,7 @@ common_setup() {
   {
     "name": "testlocal",
     "type": "local",
-    "path": "/tmp/aios-test-local",
+    "path": "/tmp/fleetmux-test-local",
     "description": "Test local session",
     "host": "",
     "tags": ["python", "local"],
@@ -58,7 +58,7 @@ common_setup() {
 SESSIONS
 
     # Source remaining modules (they use the overridden paths now)
-    unset _AIOS_REGISTRY_LOADED _AIOS_DISPLAY_LOADED
+    unset _FLEETMUX_REGISTRY_LOADED _FLEETMUX_DISPLAY_LOADED
     source "${LIB_DIR}/registry.sh"
     source "${LIB_DIR}/display.sh"
 }

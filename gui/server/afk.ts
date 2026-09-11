@@ -1,5 +1,5 @@
 /**
- * AFK monitoring — surfaces sandcastle Docker runs from any aios session that
+ * AFK monitoring — surfaces sandcastle Docker runs from any fleetmux session that
  * has adopted afk-workflow. Reads `<session-path>/.sandcastle/logs/*.log`
  * from sessions.json + streams them live to the GUI via WebSocket.
  *
@@ -19,8 +19,8 @@ import { spawn } from 'child_process'
 import { readFileSync, statSync, readdirSync, existsSync } from 'fs'
 import path from 'path'
 
-const AIOS_DIR = process.env.AIOS_DIR || path.resolve(import.meta.dirname, '..', '..')
-const SESSIONS_FILE = path.join(AIOS_DIR, 'sessions.json')
+const FLEETMUX_DIR = process.env.FLEETMUX_DIR || path.resolve(import.meta.dirname, '..', '..')
+const SESSIONS_FILE = path.join(FLEETMUX_DIR, 'sessions.json')
 
 interface SessionRecord {
   name: string

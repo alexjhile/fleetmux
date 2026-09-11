@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091,SC2059
 # Health — VPS health checks (parallel SSH) + local session health
-[[ -n "${_AIOS_HEALTH_LOADED:-}" ]] && return 0; _AIOS_HEALTH_LOADED=1
+[[ -n "${_FLEETMUX_HEALTH_LOADED:-}" ]] && return 0; _FLEETMUX_HEALTH_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"

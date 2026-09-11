@@ -206,10 +206,10 @@ cmd_status() {
     # tmux session info
     if tmux_session_exists; then
         local window_count
-        window_count=$(tmux list-windows -t "$AIOS_TMUX_SESSION" 2>/dev/null | wc -l | tr -d ' ')
-        print_info "tmux session '$AIOS_TMUX_SESSION' active with $window_count window(s)"
+        window_count=$(tmux list-windows -t "$FLEETMUX_TMUX_SESSION" 2>/dev/null | wc -l | tr -d ' ')
+        print_info "tmux session '$FLEETMUX_TMUX_SESSION' active with $window_count window(s)"
     else
-        printf "  ${C_DIM}tmux session '$AIOS_TMUX_SESSION' not running${C_RESET}\n"
+        printf "  ${C_DIM}tmux session '$FLEETMUX_TMUX_SESSION' not running${C_RESET}\n"
     fi
     echo ""
 }

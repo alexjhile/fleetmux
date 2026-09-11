@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091,SC2059
 # Conversation — read recent chat from a session's Claude Code JSONL transcript
-[[ -n "${_AIOS_CONVERSATION_LOADED:-}" ]] && return 0; _AIOS_CONVERSATION_LOADED=1
+[[ -n "${_FLEETMUX_CONVERSATION_LOADED:-}" ]] && return 0; _FLEETMUX_CONVERSATION_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"

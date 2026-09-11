@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2059
 # Display formatting — table output with ANSI colors
-[[ -n "${_AIOS_DISPLAY_LOADED:-}" ]] && return 0; _AIOS_DISPLAY_LOADED=1
+[[ -n "${_FLEETMUX_DISPLAY_LOADED:-}" ]] && return 0; _FLEETMUX_DISPLAY_LOADED=1
 
 # Colors
 C_RESET="\033[0m"

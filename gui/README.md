@@ -23,11 +23,11 @@ The GUI drives the `fleetmux` CLI, so it expects the CLI repo alongside it. By d
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AIOS_DIR` | repo root (`../..`) | Where `sessions.json` / `tasks.json` / caches live |
-| `AIOS_CLI` | `$AIOS_DIR/fleetmux` | Path to the CLI binary |
+| `FLEETMUX_DIR` | repo root (`../..`) | Where `sessions.json` / `tasks.json` / caches live |
+| `FLEETMUX_CLI` | `$FLEETMUX_DIR/fleetmux` | Path to the CLI binary |
 | `PORT` | `9035` | Server port (serves API + built frontend + WebSocket) |
 | `TMUX_BIN` | `tmux` | tmux binary (set if not on PATH) |
-| `FS_ROOT` | `$AIOS_CLAUDE_CODE_ROOT` or `$HOME` | Root for the file browser |
+| `FS_ROOT` | `$FLEETMUX_CLAUDE_CODE_ROOT` or `$HOME` | Root for the file browser |
 
 ## Develop
 
@@ -56,8 +56,8 @@ cd server && npm install && npm test   # vitest
 
 ## Layout
 
-- `server/` — Express API, WebSocket terminals (`terminal.ts`), CLI integration (`aios.ts`), AFK log streaming (`afk.ts`), file browser (`files.ts`)
+- `server/` — Express API, WebSocket terminals (`terminal.ts`), CLI integration (`fleetmux.ts`), AFK log streaming (`afk.ts`), file browser (`files.ts`)
 - `src/` — React app (pages, components, hooks, typed API client)
 - `src-tauri/` — Tauri v2 desktop wrapper
 
-> Internal env vars keep the `AIOS_` prefix for parity with the CLI (fleetmux began as a personal tool called "AIOS"). They're functionally irrelevant to users.
+> The server reads the same `FLEETMUX_*` env vars as the CLI.

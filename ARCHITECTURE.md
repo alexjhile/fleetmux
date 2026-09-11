@@ -27,9 +27,9 @@ lib/
   working-check.sh       WORKING.md freshness checks
   afk.sh                 overnight queue drain (wraps an autonomous run harness)
 bin/
-  aios-claude            launch wrapper: reads $AIOS_ACCOUNT, exports the OAuth token, execs claude
-  aios-usage-parser      aggregates ~/.claude/projects/*/*.jsonl into per-session usage
-  aios-limits-probe      minimal API call that reads rate-limit response headers
+  fleetmux-claude            launch wrapper: reads $FLEETMUX_ACCOUNT, exports the OAuth token, execs claude
+  fleetmux-usage-parser      aggregates ~/.claude/projects/*/*.jsonl into per-session usage
+  fleetmux-limits-probe      minimal API call that reads rate-limit response headers
 ```
 
 ## Data flow
@@ -38,7 +38,7 @@ bin/
                 sessions.json  ──read──▶  registry.sh  ──▶  every command
                                                 │
   fleetmux start <name> ───────────────────────┤
-        │ local:  tmux new-window → cd path → ~/.aios-claude <flags>
+        │ local:  tmux new-window → cd path → ~/.fleetmux-claude <flags>
         │ remote: tmux new-window → ssh -t host → tmux (on host) → wrapper <flags>
         ▼
   fleetmux run/exec <name> "task"  ──tmux send-keys / claude -p──▶  the session
@@ -57,7 +57,7 @@ bin/
 | `brain/` | snapshots of each session's Claude Code memory |
 | `usage-cache.json` / `limits-cache.json` | cached token-burn + subscription limits |
 | `model-guard-state.json` | active model overrides |
-| `logs/`, `.aios/` | per-command logs and AFK run sidecars/locks |
+| `logs/`, `.fleetmux/` | per-command logs and AFK run sidecars/locks |
 
 ## Design principles
 

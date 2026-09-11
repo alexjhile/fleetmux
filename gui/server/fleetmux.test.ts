@@ -18,7 +18,7 @@ const mockReadFileSync = vi.mocked(readFileSync)
 const mockExistsSync = vi.mocked(existsSync)
 
 // Import after mocks are set up
-const { readSessions, detectSessionInfo, getGitInfo, getGitDetail, readTasks, getLastTaskForSession, getSessionUptime, captureLogs } = await import('./aios.js')
+const { readSessions, detectSessionInfo, getGitInfo, getGitDetail, readTasks, getLastTaskForSession, getSessionUptime, captureLogs } = await import('./fleetmux.js')
 
 const SAMPLE_SESSIONS = [
   { name: 'web', type: 'local', path: '/home/you/code/web-app', description: 'Web app', tags: ['core'], autostart: false, claude_flags: '--verbose' },
@@ -309,7 +309,7 @@ describe('shellEscape (via dispatchTask)', () => {
       return {} as any
     })
 
-    const { dispatchTask } = await import('./aios.js')
+    const { dispatchTask } = await import('./fleetmux.js')
     await dispatchTask('web', 'test "quoted" $VAR `backtick` \\backslash')
 
     expect(mockExec).toHaveBeenCalledWith(

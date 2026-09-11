@@ -16,14 +16,14 @@
 # reset is imminent" case automatically.
 #
 # Never uses Haiku. Sonnet only.
-[[ -n "${_AIOS_MODEL_GUARD_LOADED:-}" ]] && return 0; _AIOS_MODEL_GUARD_LOADED=1
+[[ -n "${_FLEETMUX_MODEL_GUARD_LOADED:-}" ]] && return 0; _FLEETMUX_MODEL_GUARD_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/status.sh"
 
-MODEL_GUARD_STATE="${AIOS_DIR}/model-guard-state.json"
-MODEL_GUARD_CONFIG="${AIOS_DIR}/model-guard-config.json"
+MODEL_GUARD_STATE="${FLEETMUX_DIR}/model-guard-state.json"
+MODEL_GUARD_CONFIG="${FLEETMUX_DIR}/model-guard-config.json"
 
 _mg_enabled=true
 _mg_curve=7.5              # hours = CURVE × (1 - usage). Bigger = more conservative.
@@ -77,7 +77,7 @@ _mg_should_downgrade() {
 _mg_send_model() {
     local session="$1" model="$2"
     if tmux_window_exists "$session"; then
-        $TMUX_CMD send-keys -t "${AIOS_TMUX_SESSION}:${session}" "/model ${model}" Enter
+        $TMUX_CMD send-keys -t "${FLEETMUX_TMUX_SESSION}:${session}" "/model ${model}" Enter
         echo "  [model-guard] ${session} → /model ${model}"
     fi
 }
@@ -87,7 +87,7 @@ model_guard_evaluate() {
     _mg_load_config
     [[ "$_mg_enabled" != "true" ]] && return 0
 
-    local limits_file="${AIOS_DIR}/limits-cache.json"
+    local limits_file="${FLEETMUX_DIR}/limits-cache.json"
     [[ ! -f "$limits_file" ]] && return 0
 
     local state

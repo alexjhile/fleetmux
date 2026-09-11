@@ -8,7 +8,7 @@ model-guard-state.json
 alerts.json
 brain/
 logs/
-.aios/
+.fleetmux/
 .sync-cache/
 
 # Logs + locks

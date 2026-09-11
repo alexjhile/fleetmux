@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { UsageCache } from '../../types/aios'
+import type { UsageCache } from '../../types/fleetmux'
 import { Tip } from './Tip'
 
 // Distinct colors for the top-N stacked sessions. "Other" is gray.

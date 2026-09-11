@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Play, Square, Send, Server, Monitor, GitBranch, HardDrive, MemoryStick, Clock, ArrowUp, ArrowDown, Check, AlertTriangle, Zap, RotateCw } from 'lucide-react'
-import type { AiosSession } from '../../types/aios'
+import type { FleetmuxSession } from '../../types/fleetmux'
 import { api } from '../../services/api'
 import { AccountPicker, invalidateAccountCache } from './AccountPicker'
 import { modelLabel } from '../usage/pricing'
@@ -76,7 +76,7 @@ function SyncBadge({ status, ahead, behind }: { status: string; ahead: number; b
   }
 }
 
-export function SessionCard({ session, onRefresh }: { session: AiosSession; onRefresh: () => void }) {
+export function SessionCard({ session, onRefresh }: { session: FleetmuxSession; onRefresh: () => void }) {
   const [task, setTask] = useState('')
   const [sending, setSending] = useState(false)
   const [acting, setActing] = useState(false)

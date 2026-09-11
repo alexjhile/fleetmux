@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091,SC2059
 # Dashboard — tmux menu and split-pane status display
-[[ -n "${_AIOS_DASHBOARD_LOADED:-}" ]] && return 0; _AIOS_DASHBOARD_LOADED=1
+[[ -n "${_FLEETMUX_DASHBOARD_LOADED:-}" ]] && return 0; _FLEETMUX_DASHBOARD_LOADED=1
 
 _DASH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_DASH_DIR}/config.sh"
@@ -9,7 +9,7 @@ source "${_DASH_DIR}/registry.sh"
 source "${_DASH_DIR}/status.sh"
 source "${_DASH_DIR}/display.sh"
 
-DASH_PANE_FILE="${AIOS_DIR}/.dash-pane"
+DASH_PANE_FILE="${FLEETMUX_DIR}/.dash-pane"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ _relative_time() {
 show_menu() {
     _require_tmux || return 1
 
-    local -a args=(-T " AIOS Sessions " -x C -y C)
+    local -a args=(-T " fleetmux Sessions " -x C -y C)
     local idx=0
     local keys=(1 2 3 4 5 6 7 8 9 0)
 
@@ -62,7 +62,7 @@ show_menu() {
 
         if tmux_window_exists "$name"; then
             icon="●"
-            cmd="select-window -t ${AIOS_TMUX_SESSION}:${name}"
+            cmd="select-window -t ${FLEETMUX_TMUX_SESSION}:${name}"
         else
             icon="○"
             cmd="run-shell 'fleetmux start ${name} 2>&1'"
@@ -96,7 +96,7 @@ _dash_session_effort() {
         return 0
     fi
     local pane
-    pane=$($TMUX_CMD capture-pane -t "${AIOS_TMUX_SESSION}:${name}" -p -S -10000 2>/dev/null) || return 0
+    pane=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -10000 2>/dev/null) || return 0
     # Most recent explicit /effort setting (a command response).
     local set_effort
     set_effort=$(echo "$pane" | grep -oE "[Ee]ffort (set to|to) (xhigh|high|medium|low)" | tail -1 | grep -oE "(xhigh|high|medium|low)$")
@@ -131,7 +131,7 @@ _dash_session_model() {
     fi
     # Look 10000 lines back — long-running sessions push the banner far up.
     local pane
-    pane=$($TMUX_CMD capture-pane -t "${AIOS_TMUX_SESSION}:${name}" -p -S -10000 2>/dev/null) || return 0
+    pane=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -10000 2>/dev/null) || return 0
     # Most recent explicit /model setting wins.
     local set_model
     set_model=$(echo "$pane" | grep -oE "Set model to (Opus|Sonnet|Haiku)[ -][0-9]+\.[0-9]+" | tail -1 | sed -E 's/Set model to //')
@@ -312,7 +312,7 @@ dash_start() {
     # Split: new pane at top, 30% height
     local pane_id
     pane_id=$($TMUX_CMD split-window -b -v -l 30% -P -F "#{pane_id}" \
-        "exec bash -c 'source \"${AIOS_DIR}/lib/dashboard.sh\" && dash_status_loop 30'")
+        "exec bash -c 'source \"${FLEETMUX_DIR}/lib/dashboard.sh\" && dash_status_loop 30'")
 
     printf '%s' "$pane_id" > "$DASH_PANE_FILE"
 

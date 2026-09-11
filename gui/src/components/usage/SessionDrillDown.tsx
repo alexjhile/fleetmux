@@ -1,5 +1,5 @@
 import { Terminal, MessageSquare, Clock, GitBranch, Folder } from 'lucide-react'
-import type { ConversationSummary } from '../../types/aios'
+import type { ConversationSummary } from '../../types/fleetmux'
 import { estimateCost, fmtCost, modelLabel } from './pricing'
 import { Tip } from './Tip'
 

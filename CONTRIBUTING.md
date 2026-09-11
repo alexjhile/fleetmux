@@ -19,7 +19,7 @@ You'll need `bash`, `tmux`, `jq`, `git`, `shellcheck`, and `bats-core`.
 - **Keep it GNU + BSD portable.** Linux/WSL use GNU `date`/`stat`, macOS uses BSD. Go through the helpers in `lib/platform.sh` rather than calling platform-specific flags.
 - **One concern per module.** New commands generally get a `lib/<thing>.sh` with an include guard, sourced from the `fleetmux` entry point.
 - **Lint + test must pass.** `make check` runs in CI on every push and PR.
-- **No secrets, no machine-specific paths.** Configuration goes through `sessions.json` and `AIOS_*` env vars, never hardcoded paths or tokens.
+- **No secrets, no machine-specific paths.** Configuration goes through `sessions.json` and `FLEETMUX_*` env vars, never hardcoded paths or tokens.
 - **Add tests.** New logic should come with `bats` coverage in `test/`.
 
 ## Pull requests

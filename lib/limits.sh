@@ -6,14 +6,14 @@
 # response headers.
 #
 # Costs roughly $0.00005 per probe (9 tokens). Cached to limits-cache.json.
-[[ -n "${_AIOS_LIMITS_LOADED:-}" ]] && return 0; _AIOS_LIMITS_LOADED=1
+[[ -n "${_FLEETMUX_LIMITS_LOADED:-}" ]] && return 0; _FLEETMUX_LIMITS_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/account.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/model-guard.sh"
 
-LIMITS_CACHE_FILE="${AIOS_DIR}/limits-cache.json"
-LIMITS_PROBE_BIN="$(dirname "${BASH_SOURCE[0]}")/../bin/aios-limits-probe"
+LIMITS_CACHE_FILE="${FLEETMUX_DIR}/limits-cache.json"
+LIMITS_PROBE_BIN="$(dirname "${BASH_SOURCE[0]}")/../bin/fleetmux-limits-probe"
 
 # Probe one account. Returns JSON.
 limits_probe_one() {

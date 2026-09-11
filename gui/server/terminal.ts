@@ -34,8 +34,8 @@ export function setupTerminalWs(server: Server) {
 // Look up a session's path from sessions.json
 function getSessionPath(sessionName: string): string | null {
   try {
-    const aiosDir = process.env.AIOS_DIR || path.resolve(import.meta.dirname, '..', '..')
-    const raw = readFileSync(path.join(aiosDir, 'sessions.json'), 'utf-8')
+    const fleetmuxDir = process.env.FLEETMUX_DIR || path.resolve(import.meta.dirname, '..', '..')
+    const raw = readFileSync(path.join(fleetmuxDir, 'sessions.json'), 'utf-8')
     const sessions = JSON.parse(raw) as Array<{ name: string; path: string; type: string }>
     const session = sessions.find((s) => s.name === sessionName)
     return session?.path || null
@@ -49,7 +49,7 @@ function ensureTmuxWindow(sessionName: string): void {
   try {
     // Check if window already exists
     execSync(
-      `${TMUX_BIN} -S "${TMUX_SOCKET}" list-windows -t aios -F "#{window_name}" 2>/dev/null | grep -qx "${sessionName}"`,
+      `${TMUX_BIN} -S "${TMUX_SOCKET}" list-windows -t fleetmux -F "#{window_name}" 2>/dev/null | grep -qx "${sessionName}"`,
       { env: PTY_ENV },
     )
   } catch {
@@ -59,7 +59,7 @@ function ensureTmuxWindow(sessionName: string): void {
     console.log(`[terminal] creating tmux window '${sessionName}' at ${cwd}`)
     try {
       execSync(
-        `${TMUX_BIN} -S "${TMUX_SOCKET}" new-window -t aios -n "${sessionName}" -c "${cwd}" ${SHELL_BIN}`,
+        `${TMUX_BIN} -S "${TMUX_SOCKET}" new-window -t fleetmux -n "${sessionName}" -c "${cwd}" ${SHELL_BIN}`,
         { env: PTY_ENV },
       )
     } catch (e) {
@@ -77,7 +77,7 @@ function handleConnection(ws: WebSocket, sessionName: string) {
   // Send tmux scrollback history before attaching (so user can scroll up)
   try {
     const history = execSync(
-      `${TMUX_BIN} -S "${TMUX_SOCKET}" capture-pane -t "aios:${sessionName}" -p -S -5000 2>/dev/null`,
+      `${TMUX_BIN} -S "${TMUX_SOCKET}" capture-pane -t "fleetmux:${sessionName}" -p -S -5000 2>/dev/null`,
       { env: PTY_ENV, maxBuffer: 10 * 1024 * 1024, encoding: 'utf-8' },
     )
     if (history && ws.readyState === WebSocket.OPEN) {
@@ -93,10 +93,10 @@ function handleConnection(ws: WebSocket, sessionName: string) {
   // attach-session resizes ALL windows to the smallest client, which can crash
   // running Claude Code sessions. Grouped sessions have independent sizing.
   // destroy-unattached (set on the new grouped session only) makes tmux drop
-  // it when this client goes away, instead of leaving aios-N sessions behind.
+  // it when this client goes away, instead of leaving fleetmux-N sessions behind.
   const ptyProcess = pty.spawn(SHELL_BIN, [
     '-c',
-    `exec ${TMUX_BIN} -S "${TMUX_SOCKET}" new-session -t aios \\; set-option destroy-unattached on \\; select-window -t "${sessionName}"`,
+    `exec ${TMUX_BIN} -S "${TMUX_SOCKET}" new-session -t fleetmux \\; set-option destroy-unattached on \\; select-window -t "${sessionName}"`,
   ], {
     name: 'xterm-256color',
     cols: 80,

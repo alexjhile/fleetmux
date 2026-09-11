@@ -90,3 +90,25 @@ teardown() {
     preview_len=$(jq -r '.[0].output_preview | length' "$TASKS_FILE")
     [[ "$preview_len" -le 210 ]]
 }
+
+# Source config.sh in a clean shell with only the given env on top, and
+# print the resolved FLEETMUX_DIR|SECRETS_DIR.
+config_value() {
+    env -u FLEETMUX_DIR -u FLEETMUX_SECRETS_DIR -u SESSIONS_FILE -u TASKS_FILE -u LOGS_DIR \
+        -u _FLEETMUX_CONFIG_LOADED -u _FLEETMUX_PLATFORM_LOADED "$@" \
+        bash -c 'source "$LIB/config.sh"; printf "%s|%s\n" "$FLEETMUX_DIR" "$SECRETS_DIR"'
+}
+
+@test "legacy AIOS_* overrides still apply when FLEETMUX_* is unset" {
+    mkdir -p "${TEST_DIR}/legacy"
+    run config_value LIB="$LIB_DIR" AIOS_DIR="${TEST_DIR}/legacy" AIOS_SECRETS_DIR="${TEST_DIR}/secrets"
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == "${TEST_DIR}/legacy|${TEST_DIR}/secrets" ]]
+}
+
+@test "FLEETMUX_* overrides win over legacy AIOS_* ones" {
+    mkdir -p "${TEST_DIR}/legacy" "${TEST_DIR}/current"
+    run config_value LIB="$LIB_DIR" AIOS_DIR="${TEST_DIR}/legacy" FLEETMUX_DIR="${TEST_DIR}/current"
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == "${TEST_DIR}/current|"* ]]
+}

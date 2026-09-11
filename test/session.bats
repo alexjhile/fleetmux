@@ -5,7 +5,7 @@ load test_helper
 
 setup() {
     common_setup
-    unset _AIOS_STATUS_LOADED _AIOS_SESSION_LOADED
+    unset _FLEETMUX_STATUS_LOADED _FLEETMUX_SESSION_LOADED
     source "${LIB_DIR}/session.sh"
 
     # Record the tmux command instead of touching a real server.

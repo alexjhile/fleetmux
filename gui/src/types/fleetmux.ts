@@ -9,7 +9,7 @@ export interface GitDetail {
   dirtyFiles?: string[]
 }
 
-export interface AiosSession {
+export interface FleetmuxSession {
   name: string
   type: 'local' | 'remote'
   path: string
@@ -143,7 +143,7 @@ export interface UsageCache {
   }>
 }
 
-export interface AiosTask {
+export interface FleetmuxTask {
   id: string
   session: string
   task: string

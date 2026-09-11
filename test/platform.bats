@@ -6,7 +6,7 @@ load test_helper
 
 setup() {
     common_setup
-    unset _AIOS_PLATFORM_LOADED
+    unset _FLEETMUX_PLATFORM_LOADED
     source "${LIB_DIR}/platform.sh"
 }
 
@@ -67,9 +67,9 @@ teardown() {
 
 # ─── WSL helpers ────────────────────────────────────────────────────────────
 
-@test "platform_is_wsl honours AIOS_PLATFORM" {
-    AIOS_PLATFORM=wsl platform_is_wsl
-    export AIOS_PLATFORM=linux
+@test "platform_is_wsl honours FLEETMUX_PLATFORM" {
+    FLEETMUX_PLATFORM=wsl platform_is_wsl
+    export FLEETMUX_PLATFORM=linux
     run platform_is_wsl
     [[ "$status" -ne 0 ]]
 }

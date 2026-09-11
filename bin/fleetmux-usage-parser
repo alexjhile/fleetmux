@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# aios-usage-parser — read Claude Code JSONL files under
+# fleetmux-usage-parser — read Claude Code JSONL files under
 # $HOME/.claude/projects/<slug>/ and emit aggregated usage as JSON.
 #
-# Usage: aios-usage-parser <slug>
+# Usage: fleetmux-usage-parser <slug>
 #
 # Deployed to every fleetmux-managed machine by `fleetmux account sync`.
 

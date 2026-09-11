@@ -2,13 +2,13 @@
 # shellcheck disable=SC1091,SC2059
 # Brain — persistent memory backup to git
 # Syncs all Claude Code memory files into ./brain/ for centralized backup
-[[ -n "${_AIOS_BRAIN_LOADED:-}" ]] && return 0; _AIOS_BRAIN_LOADED=1
+[[ -n "${_FLEETMUX_BRAIN_LOADED:-}" ]] && return 0; _FLEETMUX_BRAIN_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/display.sh"
 
-BRAIN_DIR="${BRAIN_DIR:-${AIOS_DIR}/brain}"
+BRAIN_DIR="${BRAIN_DIR:-${FLEETMUX_DIR}/brain}"
 
 # Encode a filesystem path to Claude's memory directory format
 # /home/you/code/myproject → -home-you-code-myproject
@@ -190,10 +190,10 @@ brain_sync() {
 
     # Optionally also sync the "controller" session's memory — a session whose
     # working dir is CLAUDE_CODE_ROOT itself (e.g. a top-level orchestrator that
-    # manages the others). Enabled only when AIOS_CONTROLLER_SESSION is set to
+    # manages the others). Enabled only when FLEETMUX_CONTROLLER_SESSION is set to
     # that session's name; off by default.
-    if [[ -n "${AIOS_CONTROLLER_SESSION:-}" ]]; then
-        local ctrl="${AIOS_CONTROLLER_SESSION}"
+    if [[ -n "${FLEETMUX_CONTROLLER_SESSION:-}" ]]; then
+        local ctrl="${FLEETMUX_CONTROLLER_SESSION}"
         local ctrl_encoded
         ctrl_encoded=$(_brain_encode_path "$CLAUDE_CODE_ROOT")
         local projects_dir
@@ -242,12 +242,12 @@ brain_commit() {
     local push=false
     [[ "${1:-}" == "--push" ]] && push=true
 
-    if [[ ! -d "${AIOS_DIR}/.git" ]]; then
+    if [[ ! -d "${FLEETMUX_DIR}/.git" ]]; then
         print_error "fleetmux directory is not a git repository"
         return 1
     fi
 
-    cd "$AIOS_DIR" || return 1
+    cd "$FLEETMUX_DIR" || return 1
 
     # Stage brain/ changes
     git add brain/ 2>/dev/null
@@ -279,12 +279,12 @@ brain_commit() {
 
 # Show what changed since last commit
 brain_diff() {
-    if [[ ! -d "${AIOS_DIR}/.git" ]]; then
+    if [[ ! -d "${FLEETMUX_DIR}/.git" ]]; then
         print_error "fleetmux directory is not a git repository"
         return 1
     fi
 
-    cd "$AIOS_DIR" || return 1
+    cd "$FLEETMUX_DIR" || return 1
 
     # Check for uncommitted brain changes
     local changes

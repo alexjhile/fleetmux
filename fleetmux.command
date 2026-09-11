@@ -10,7 +10,7 @@
 #   Any:     run it from a shell.
 #
 # Config (env overrides):
-#   FLEETMUX_TMUX_SESSION   tmux session name      (default: aios)
+#   FLEETMUX_TMUX_SESSION   tmux session name      (default: fleetmux)
 #   FLEETMUX_WINDOW         tmux window name       (default: homebase — the
 #                           controller session setup.sh registers, so the GUI
 #                           and dashboard show it as running)
@@ -20,7 +20,7 @@
 set -u
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-TMUX_SESSION="${FLEETMUX_TMUX_SESSION:-aios}"
+TMUX_SESSION="${FLEETMUX_TMUX_SESSION:-fleetmux}"
 WINDOW_NAME="${FLEETMUX_WINDOW:-homebase}"
 WORKDIR="${FLEETMUX_WORKDIR:-$REPO_DIR}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"

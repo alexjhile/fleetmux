@@ -2,13 +2,13 @@
 # shellcheck disable=SC1091,SC2059
 # Alerts — smart monitoring across the fleet
 # Checks VPS health, stuck tasks, and idle sessions
-[[ -n "${_AIOS_ALERTS_LOADED:-}" ]] && return 0; _AIOS_ALERTS_LOADED=1
+[[ -n "${_FLEETMUX_ALERTS_LOADED:-}" ]] && return 0; _FLEETMUX_ALERTS_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/display.sh"
 
-ALERTS_FILE="${AIOS_DIR}/alerts.json"
+ALERTS_FILE="${FLEETMUX_DIR}/alerts.json"
 
 # Check VPS reachability and resource usage
 # Usage: check_vps_alerts <name> <host> <out_file>
