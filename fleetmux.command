@@ -25,10 +25,13 @@ WINDOW_NAME="${FLEETMUX_WINDOW:-homebase}"
 WORKDIR="${FLEETMUX_WORKDIR:-$REPO_DIR}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
 CLAUDE_CMD="$CLAUDE_BIN --continue --verbose --dangerously-skip-permissions"
+# --continue fails when this dir has no prior conversation (first launch);
+# fall back to a fresh one, the same way `fleetmux start` does.
+CLAUDE_RUN="$CLAUDE_CMD || ${CLAUDE_CMD/ --continue/}"
 
 launch_window() {
   tmux new-window -t "$TMUX_SESSION" -n "$WINDOW_NAME" \
-    "cd '$WORKDIR' && $CLAUDE_CMD; bash"
+    "cd '$WORKDIR' && { $CLAUDE_RUN; }; bash"
 }
 
 # Already inside tmux — just focus/create the control window.
@@ -48,7 +51,7 @@ fi
 
 # Fresh start — create the session, launch Claude, dock the dashboard below.
 tmux new-session -d -s "$TMUX_SESSION" -n "$WINDOW_NAME" -c "$WORKDIR"
-tmux send-keys -t "${TMUX_SESSION}:${WINDOW_NAME}" "$CLAUDE_CMD" Enter
+tmux send-keys -t "${TMUX_SESSION}:${WINDOW_NAME}" "$CLAUDE_RUN" Enter
 sleep 2
 if [[ -f "${REPO_DIR}/lib/dashboard.sh" ]]; then
   tmux split-window -t "${TMUX_SESSION}:${WINDOW_NAME}" -b -v -l 12 \
