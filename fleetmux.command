@@ -54,8 +54,10 @@ tmux new-session -d -s "$TMUX_SESSION" -n "$WINDOW_NAME" -c "$WORKDIR"
 tmux send-keys -t "${TMUX_SESSION}:${WINDOW_NAME}" "$CLAUDE_RUN" Enter
 sleep 2
 if [[ -f "${REPO_DIR}/lib/dashboard.sh" ]]; then
-  tmux split-window -t "${TMUX_SESSION}:${WINDOW_NAME}" -b -v -l 12 \
+  # -d: add the dashboard without taking focus, so typing goes to Claude.
+  # (With -b the new pane becomes index 0, so selecting ".0" afterwards
+  # used to focus the dashboard instead.)
+  tmux split-window -d -t "${TMUX_SESSION}:${WINDOW_NAME}" -b -v -l 12 \
     "exec bash -c 'source \"${REPO_DIR}/lib/dashboard.sh\" && dash_status_loop 30'"
-  tmux select-pane -t "${TMUX_SESSION}:${WINDOW_NAME}.0" 2>/dev/null || true
 fi
 exec tmux attach -t "$TMUX_SESSION"

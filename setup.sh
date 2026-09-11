@@ -186,7 +186,10 @@ install_windows_integration() {
     cp "$REPO_DIR/gui/src-tauri/icons/icon.ico" "$ico_dir/fleetmux.ico"
     if command -v wt.exe >/dev/null 2>&1; then
       target=$(wslpath -w "$(command -v wt.exe)")
-      args="-p fleetmux"
+      # Spell the command out instead of `-p fleetmux`: a Windows Terminal
+      # that's already running only picks up fragment profiles at its next
+      # start, and an unknown -p silently opens the default shell.
+      args="new-tab --title fleetmux -- wsl.exe ${distro:+-d $distro }-e bash -l $REPO_DIR/fleetmux.command"
     else
       target='C:\Windows\System32\wsl.exe'
       args="${distro:+-d $distro }-e bash -l $REPO_DIR/fleetmux.command"
@@ -249,7 +252,9 @@ if [ "$have_npm" -eq 1 ]; then
   if curl -sf "http://localhost:9035" >/dev/null 2>&1; then
     ok "a server is already listening on :9035"
   else
-    ( cd gui/server && AIOS_DIR="$REPO_DIR" nohup npx tsx index.ts >"$REPO_DIR/gui/server.log" 2>&1 & )
+    # Detach every stdio of the whole subtree: anything left holding setup's
+    # stdout would keep a caller like `./setup.sh | tee log` waiting forever.
+    ( cd gui/server && AIOS_DIR="$REPO_DIR" nohup npx tsx index.ts >"$REPO_DIR/gui/server.log" 2>&1 </dev/null & ) >/dev/null 2>&1 </dev/null
     for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
       curl -sf "http://localhost:9035" >/dev/null 2>&1 && break
       sleep 0.5
