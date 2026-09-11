@@ -36,7 +36,7 @@ read_local_context() {
             [[ -z "$mod_time" ]] && mod_time="?"
             size=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
             printf "  ${C_DIM}%-30s %s  %s bytes${C_RESET}\n" "$fname" "$mod_time" "$size"
-            ((file_count++))
+            file_count=$((file_count + 1))
         done < <(find "$memory_dir" -type f -name "*.md" 2>/dev/null | sort)
 
         if [[ $file_count -eq 0 ]]; then

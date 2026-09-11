@@ -140,7 +140,7 @@ run_alerts() {
         local alert_count=0
         while IFS='|' read -r session alert_type message; do
             [[ -z "$session" ]] && continue
-            ((alert_count++))
+            alert_count=$((alert_count + 1))
             local icon
             case "$alert_type" in
                 unreachable) icon="${C_RED}✗" ;;

@@ -80,13 +80,13 @@ cmd_list() {
         state=$(detect_session_state "$name")
 
         print_row "$i" "$name" "$type" "$target" "$state" "$desc"
-        ((i++))
-        ((shown++))
+        i=$((i + 1))
+        shown=$((shown + 1))
 
         case "$state" in
-            running) ((running++)) ;;
-            idle)    ((idle++)) ;;
-            stopped) ((stopped++)) ;;
+            running) running=$((running + 1)) ;;
+            idle)    idle=$((idle + 1)) ;;
+            stopped) stopped=$((stopped + 1)) ;;
         esac
     done < <(registry_list_names)
 
@@ -194,11 +194,11 @@ cmd_status() {
         print_status_row "$i" "$name" "$type" "$target" "$state" "$last_task"
 
         case "$state" in
-            running) ((running++)) ;;
-            idle)    ((idle++)) ;;
-            stopped) ((stopped++)) ;;
+            running) running=$((running + 1)) ;;
+            idle)    idle=$((idle + 1)) ;;
+            stopped) stopped=$((stopped + 1)) ;;
         esac
-        ((i++))
+        i=$((i + 1))
     done < <(registry_list_names)
 
     print_summary "$(registry_count)" "$running" "$idle" "$stopped"

@@ -144,7 +144,7 @@ brain_sync_global_config() {
             base=$(basename "$src")
             # ~/.claude.json -> claude.json ; ~/.claude/settings.json -> settings.json
             cp "$src" "${out}/${base}"
-            ((copied++))
+            copied=$((copied + 1))
         else
             printf "  ${C_YELLOW}⚠ skipped %s — invalid JSON, not snapshotted${C_RESET}\n" "$src" >&2
         fi
@@ -174,7 +174,7 @@ brain_sync() {
             local|utility)
                 brain_sync_local "$name" "$path"
                 if [[ -d "${BRAIN_DIR}/${name}" ]] && [[ -n "$(ls -A "${BRAIN_DIR}/${name}" 2>/dev/null)" ]]; then
-                    ((synced++))
+                    synced=$((synced + 1))
                     $quiet || printf "  ${C_DIM}✓ %s${C_RESET}\n" "$name"
                 fi
                 ;;
@@ -206,7 +206,7 @@ brain_sync() {
                 cp "$f" "${BRAIN_DIR}/${ctrl}/"
             done < <(find "$ctrl_memory" -maxdepth 1 -type f -name "*.md" 2>/dev/null)
             if [[ -n "$(ls -A "${BRAIN_DIR}/${ctrl}" 2>/dev/null)" ]]; then
-                ((synced++))
+                synced=$((synced + 1))
                 $quiet || printf "  ${C_DIM}✓ %s${C_RESET}\n" "$ctrl"
             fi
         fi
@@ -217,7 +217,7 @@ brain_sync() {
         if wait "${vps_pids[$i]}" 2>/dev/null; then
             local vname="${vps_names[$i]}"
             if [[ -d "${BRAIN_DIR}/${vname}" ]] && [[ -n "$(ls -A "${BRAIN_DIR}/${vname}" 2>/dev/null)" ]]; then
-                ((synced++))
+                synced=$((synced + 1))
                 $quiet || printf "  ${C_DIM}✓ %s (remote)${C_RESET}\n" "$vname"
             fi
         else
@@ -309,7 +309,7 @@ brain_session_count() {
     fi
     local count=0
     while IFS= read -r d; do
-        [[ -d "$d" ]] && ((count++))
+        [[ -d "$d" ]] && count=$((count + 1))
     done < <(find "$BRAIN_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
     echo "$count"
 }

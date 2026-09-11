@@ -70,7 +70,7 @@ show_menu() {
 
         label=$(printf "%s %-14s [%s]" "$icon" "$name" "$type")
         args+=("$label" "$key" "$cmd")
-        ((idx++))
+        idx=$((idx + 1))
     done < <(registry_list_names)
 
     # Separator + bulk actions
@@ -180,7 +180,7 @@ dash_status_loop() {
         local -a rows=()
 
         while IFS= read -r name; do
-            ((total++))
+            total=$((total + 1))
             local type icon status_str type_label task_icon
 
             type=$(registry_get_field "$name" "type")
@@ -190,7 +190,7 @@ dash_status_loop() {
             if tmux_window_exists "$name"; then
                 icon="\033[32m●\033[0m"
                 status_str="\033[32mrun\033[0m"
-                ((running++))
+                running=$((running + 1))
                 local mdl
                 mdl=$(_dash_session_model "$name")
                 if [[ -n "$mdl" ]]; then
@@ -243,7 +243,7 @@ dash_status_loop() {
             case "$task_status" in
                 dispatched)
                     task_icon="\033[33m⟳\033[0m"  # yellow — actively working
-                    ((active++))
+                    active=$((active + 1))
                     ;;
                 completed)
                     task_icon="\033[32m✓\033[0m"  # green — done

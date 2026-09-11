@@ -157,9 +157,9 @@ draw_dashboard() {
         # Colors
         local state_color type_color
         case "$state" in
-            running) state_color="\033[32m"; ((running++)) ;;
-            idle)    state_color="\033[33m"; ((idle++)) ;;
-            stopped) state_color="\033[2m";  ((stopped++)) ;;
+            running) state_color="\033[32m"; running=$((running + 1)) ;;
+            idle)    state_color="\033[33m"; idle=$((idle + 1)) ;;
+            stopped) state_color="\033[2m";  stopped=$((stopped + 1)) ;;
             *)       state_color="" ;;
         esac
         case "$type" in
@@ -172,7 +172,7 @@ draw_dashboard() {
         printf "  %-3s %-13s ${type_color}%-8s\033[0m %-18s ${state_color}%-9s\033[0m %-14s %s\n" \
             "$i" "$name" "$type" "$target" "$state" "$health_str" "$activity"
 
-        ((i++))
+        i=$((i + 1))
     done < <(registry_list_names)
 
     # ── Footer ──
