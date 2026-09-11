@@ -89,6 +89,13 @@ case ":$PATH:" in
   *) warn "$HOME/bin is not on your PATH — add: export PATH=\"\$HOME/bin:\$PATH\"" ;;
 esac
 
+# `fleetmux start` launches Claude through ~/.aios-claude (the account-aware
+# wrapper). Install it — plus the usage parser — locally, or every session
+# opens to "~/.aios-claude: No such file or directory". Idempotent; with no
+# named accounts the wrapper just uses Claude Code's own login.
+"$REPO_DIR/fleetmux" account sync local >/dev/null
+ok "Claude launch wrapper installed at ~/.aios-claude"
+
 # ── 2b. Windows integration (WSL only) ──────────────────────────────────────
 # Read a Windows environment variable from inside WSL.
 win_env() {
