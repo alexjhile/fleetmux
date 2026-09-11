@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# aios-limits-probe — fetch subscription rate limits for an account.
+#
+# Makes a minimal POST /v1/messages call (max_tokens=1, Haiku 4.5 = ~9 tokens
+# cost, roughly $0.00005 list) and parses the anthropic-ratelimit-unified-*
+# response headers. Outputs JSON with the rate-limit fields.
+#
+# Usage: aios-limits-probe <account-name>
+#
+# Reads token from $HOME/.aios-accounts/<name>.token (same convention as
+# the wrapper). Intended to be called from lib/limits.sh.
+
+set -e
+
+account="${1:-}"
+if [[ -z "$account" ]]; then
+    echo 'Error: account name required' >&2
+    exit 1
+fi
+
+token_file="${HOME}/.aios-accounts/${account}.token"
+if [[ ! -r "$token_file" ]]; then
+    echo "Error: token not found at $token_file" >&2
+    exit 1
+fi
+
+token=$(tr -d '[:space:]' < "$token_file")
+
+tmp_body=$(mktemp)
+tmp_headers=$(mktemp)
+trap 'rm -f "$tmp_body" "$tmp_headers"' EXIT
+
+http_code=$(curl -sS -o "$tmp_body" -D "$tmp_headers" -w '%{http_code}' \
+    -X POST "https://api.anthropic.com/v1/messages" \
+    -H "Authorization: Bearer $token" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "anthropic-beta: oauth-2025-04-20" \
+    -H "content-type: application/json" \
+    --max-time 15 \
+    -d '{"model":"claude-haiku-4-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' 2>&1) || {
+    echo "{\"account\":\"$account\",\"error\":\"network: $http_code\",\"checked_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+    exit 0
+}
+
+if [[ "$http_code" != "200" ]]; then
+    err=$(jq -r '.error.message // .error.type // "unknown"' < "$tmp_body" 2>/dev/null)
+    echo "{\"account\":\"$account\",\"http_code\":$http_code,\"error\":$(jq -Rs . <<<"$err"),\"checked_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+    exit 0
+fi
+
+# Extract unified rate-limit headers
+get_header() {
+    local name="$1"
+    grep -i "^${name}:" "$tmp_headers" | head -1 | sed "s/^[^:]*:[[:space:]]*//" | tr -d '\r\n' | sed 's/[[:space:]]*$//'
+}
+
+org_id=$(get_header 'anthropic-organization-id')
+five_pct=$(get_header 'anthropic-ratelimit-unified-5h-utilization')
+five_reset=$(get_header 'anthropic-ratelimit-unified-5h-reset')
+five_status=$(get_header 'anthropic-ratelimit-unified-5h-status')
+seven_pct=$(get_header 'anthropic-ratelimit-unified-7d-utilization')
+seven_reset=$(get_header 'anthropic-ratelimit-unified-7d-reset')
+seven_status=$(get_header 'anthropic-ratelimit-unified-7d-status')
+opus_pct=$(get_header 'anthropic-ratelimit-unified-7d-opus-utilization')
+opus_reset=$(get_header 'anthropic-ratelimit-unified-7d-opus-reset')
+opus_status=$(get_header 'anthropic-ratelimit-unified-7d-opus-status')
+rep=$(get_header 'anthropic-ratelimit-unified-representative-claim')
+overage_status=$(get_header 'anthropic-ratelimit-unified-overage-status')
+overage_reason=$(get_header 'anthropic-ratelimit-unified-overage-disabled-reason')
+
+# Normalise numeric fields (empty → null)
+fnum() { [[ -z "$1" ]] && echo 'null' || echo "$1"; }
+# -R (raw input) with printf %s (no trailing newline) avoids \n leaking into the JSON string
+fstr() { [[ -z "$1" ]] && echo 'null' || printf '%s' "$1" | jq -Rs .; }
+
+cat <<JSON
+{
+  "account": "$account",
+  "organization_id": $(fstr "$org_id"),
+  "five_hour": {
+    "used_percentage": $(fnum "$five_pct"),
+    "resets_at": $(fnum "$five_reset"),
+    "status": $(fstr "$five_status")
+  },
+  "seven_day": {
+    "used_percentage": $(fnum "$seven_pct"),
+    "resets_at": $(fnum "$seven_reset"),
+    "status": $(fstr "$seven_status")
+  },
+  "seven_day_opus": {
+    "used_percentage": $(fnum "$opus_pct"),
+    "resets_at": $(fnum "$opus_reset"),
+    "status": $(fstr "$opus_status")
+  },
+  "representative": $(fstr "$rep"),
+  "overage_status": $(fstr "$overage_status"),
+  "overage_disabled_reason": $(fstr "$overage_reason"),
+  "checked_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+JSON

@@ -1,0 +1,40 @@
+[
+  {
+    "name": "web",
+    "type": "local",
+    "path": "/home/you/code/web-app",
+    "description": "Front-end app — local checkout",
+    "tags": [
+      "frontend",
+      "nextjs"
+    ],
+    "autostart": false,
+    "claude_flags": "--continue --dangerously-skip-permissions"
+  },
+  {
+    "name": "api",
+    "type": "local",
+    "path": "/home/you/code/api",
+    "description": "Backend API service",
+    "tags": [
+      "backend",
+      "python"
+    ],
+    "autostart": false,
+    "claude_flags": "--continue --dangerously-skip-permissions",
+    "afk_ready": true
+  },
+  {
+    "name": "worker",
+    "type": "remote",
+    "path": "/home/deploy/code/worker",
+    "host": "deploy@203.0.113.10",
+    "description": "Background worker running on a remote host",
+    "tags": [
+      "remote",
+      "worker"
+    ],
+    "autostart": true,
+    "claude_flags": "--continue --dangerously-skip-permissions"
+  }
+]
