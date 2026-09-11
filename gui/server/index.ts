@@ -248,7 +248,7 @@ app.post('/api/sessions/:name/popout', async (req, res) => {
     `# fleetmux — ${name}`,
     `printf "\\e]0;fleetmux — ${name}\\a"`,  // set window title
     'clear',
-    `exec ${tmux} -S "${socket}" new-session -t aios \\; select-window -t "${name}"`,
+    `exec ${tmux} -S "${socket}" new-session -t aios \\; set-option destroy-unattached on \\; select-window -t "${name}"`,
   ].join('\n')
 
   try {

@@ -92,9 +92,11 @@ function handleConnection(ws: WebSocket, sessionName: string) {
   // Use new-session -t (grouped session) instead of attach-session
   // attach-session resizes ALL windows to the smallest client, which can crash
   // running Claude Code sessions. Grouped sessions have independent sizing.
+  // destroy-unattached (set on the new grouped session only) makes tmux drop
+  // it when this client goes away, instead of leaving aios-N sessions behind.
   const ptyProcess = pty.spawn(SHELL_BIN, [
     '-c',
-    `exec ${TMUX_BIN} -S "${TMUX_SOCKET}" new-session -t aios \\; select-window -t "${sessionName}"`,
+    `exec ${TMUX_BIN} -S "${TMUX_SOCKET}" new-session -t aios \\; set-option destroy-unattached on \\; select-window -t "${sessionName}"`,
   ], {
     name: 'xterm-256color',
     cols: 80,
