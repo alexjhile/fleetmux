@@ -87,6 +87,22 @@ platform_normalize_path() {
     printf '%s\n' "$p"
 }
 
+# platform_uuid
+# A fresh lowercase random UUID. uuidgen (macOS, most Linux) → the kernel's
+# generator → /dev/urandom, formatted as a v4 UUID.
+platform_uuid() {
+    local u h
+    if command -v uuidgen >/dev/null 2>&1; then
+        u=$(uuidgen)
+    elif [[ -r /proc/sys/kernel/random/uuid ]]; then
+        u=$(cat /proc/sys/kernel/random/uuid)
+    else
+        h=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+        u="${h:0:8}-${h:8:4}-4${h:13:3}-a${h:17:3}-${h:20:12}"
+    fi
+    printf '%s\n' "$u" | tr '[:upper:]' '[:lower:]'
+}
+
 # run_keepawake <cmd> [args...]
 # Run a command while keeping the host from idle-sleeping:
 #   macOS → caffeinate -i

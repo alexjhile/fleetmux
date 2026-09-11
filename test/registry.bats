@@ -87,3 +87,35 @@ teardown() {
     result=$(registry_get_field "testlocal" "host")
     [[ -z "$result" || "$result" == "" ]]
 }
+
+@test "registry_add_session defaults claude_flags to skip-permissions + verbose" {
+    registry_add_session "flagsess" "local" "/tmp/flags" "" ""
+
+    local result
+    result=$(registry_get_field "flagsess" "claude_flags")
+    [[ "$result" == "--dangerously-skip-permissions --verbose" ]]
+}
+
+@test "registry_set_field updates only the named session" {
+    registry_set_field "testlocal" "description" "changed"
+
+    [[ "$(registry_get_field "testlocal" "description")" == "changed" ]]
+    [[ "$(registry_get_field "testremote" "description")" == "Test remote session" ]]
+}
+
+@test "registry_conversation_id mints a UUID once and then reuses it" {
+    local first second
+    first=$(registry_conversation_id "testlocal")
+    [[ "$first" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
+    [[ "$(registry_get_field "testlocal" "conversation_id")" == "$first" ]]
+
+    second=$(registry_conversation_id "testlocal")
+    [[ "$second" == "$first" ]]
+}
+
+@test "registry_conversation_id gives each session its own conversation" {
+    local a b
+    a=$(registry_conversation_id "testlocal")
+    b=$(registry_conversation_id "testremote")
+    [[ -n "$a" && -n "$b" && "$a" != "$b" ]]
+}

@@ -24,10 +24,17 @@ TMUX_SESSION="${FLEETMUX_TMUX_SESSION:-aios}"
 WINDOW_NAME="${FLEETMUX_WINDOW:-homebase}"
 WORKDIR="${FLEETMUX_WORKDIR:-$REPO_DIR}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
-CLAUDE_CMD="$CLAUDE_BIN --continue --verbose --dangerously-skip-permissions"
-# --continue fails when this dir has no prior conversation (first launch);
-# fall back to a fresh one, the same way `fleetmux start` does.
-CLAUDE_RUN="$CLAUDE_CMD || ${CLAUDE_CMD/ --continue/}"
+CLAUDE_FLAGS="--verbose --dangerously-skip-permissions"
+# A registered window resumes its pinned conversation, like `fleetmux start`
+# (the first launch creates it under that id). Unregistered: --continue, or a
+# fresh conversation when this dir has none yet.
+CONV_ID=$(bash -c 'source "$1/lib/registry.sh" && registry_session_exists "$2" && registry_conversation_id "$2"' \
+  _ "$REPO_DIR" "$WINDOW_NAME" 2>/dev/null)
+if [[ -n "$CONV_ID" ]]; then
+  CLAUDE_RUN="$CLAUDE_BIN --resume $CONV_ID $CLAUDE_FLAGS || $CLAUDE_BIN --session-id $CONV_ID $CLAUDE_FLAGS"
+else
+  CLAUDE_RUN="$CLAUDE_BIN --continue $CLAUDE_FLAGS || $CLAUDE_BIN $CLAUDE_FLAGS"
+fi
 
 launch_window() {
   tmux new-window -t "$TMUX_SESSION" -n "$WINDOW_NAME" \

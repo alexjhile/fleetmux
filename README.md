@@ -157,13 +157,14 @@ fleetmux is configured by `sessions.json` (copy `sessions.example.json`) plus en
   "description": "Backend API",
   "tags": ["backend"],
   "autostart": false,             // started by `startall` without --all
-  "claude_flags": "--continue --dangerously-skip-permissions",
+  "claude_flags": "--dangerously-skip-permissions --verbose",
+  "conversation_id": "…",         // set on first start: the Claude conversation every start resumes
   "account": "",                  // optional: account profile (see Accounts). "" = ambient auth
   "afk_ready": true               // optional: opt-in to `afk` queue draining
 }
 ```
 
-Only `name`, `type`, and `path` are required. Leave `account` empty (or omit it) to use Claude Code's ambient auth — set it only once you've configured named accounts (see below), otherwise the launcher warns about a missing token.
+Only `name`, `type`, and `path` are required. Each session keeps one Claude conversation across restarts: the first `fleetmux start` mints `conversation_id` and later starts `--resume` it (sessions sharing a directory stay separate, which `--continue` can't guarantee). Delete the field to start the session on a fresh conversation. Leave `account` empty (or omit it) to use Claude Code's ambient auth — set it only once you've configured named accounts (see below), otherwise the launcher warns about a missing token.
 
 ## Accounts
 

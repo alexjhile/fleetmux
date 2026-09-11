@@ -9,7 +9,7 @@
       "nextjs"
     ],
     "autostart": false,
-    "claude_flags": "--continue --dangerously-skip-permissions"
+    "claude_flags": "--dangerously-skip-permissions --verbose"
   },
   {
     "name": "api",
@@ -21,7 +21,7 @@
       "python"
     ],
     "autostart": false,
-    "claude_flags": "--continue --dangerously-skip-permissions",
+    "claude_flags": "--dangerously-skip-permissions --verbose",
     "afk_ready": true
   },
   {
@@ -35,6 +35,6 @@
       "worker"
     ],
     "autostart": true,
-    "claude_flags": "--continue --dangerously-skip-permissions"
+    "claude_flags": "--dangerously-skip-permissions --verbose"
   }
 ]

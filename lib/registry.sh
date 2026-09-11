@@ -5,6 +5,9 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/config.sh"
 
+# claude_flags for sessions created by `fleetmux add`
+REGISTRY_DEFAULT_FLAGS="--dangerously-skip-permissions --verbose"
+
 registry_list_sessions() {
     jq -r '.' "$SESSIONS_FILE"
 }
@@ -57,14 +60,16 @@ registry_add_session() {
            --arg path "$path" \
            --arg desc "$description" \
            --arg host "$host" \
-           '. + [{name: $name, type: $type, host: $host, path: $path, description: $desc, tags: [], autostart: false, claude_flags: "--dangerously-skip-permissions"}]' \
+           --arg flags "$REGISTRY_DEFAULT_FLAGS" \
+           '. + [{name: $name, type: $type, host: $host, path: $path, description: $desc, tags: [], autostart: false, claude_flags: $flags}]' \
            "$SESSIONS_FILE" > "$tmp" && mv "$tmp" "$SESSIONS_FILE"
     else
         jq --arg name "$name" \
            --arg type "$type" \
            --arg path "$path" \
            --arg desc "$description" \
-           '. + [{name: $name, type: $type, path: $path, description: $desc, tags: [], autostart: false, claude_flags: "--dangerously-skip-permissions"}]' \
+           --arg flags "$REGISTRY_DEFAULT_FLAGS" \
+           '. + [{name: $name, type: $type, path: $path, description: $desc, tags: [], autostart: false, claude_flags: $flags}]' \
            "$SESSIONS_FILE" > "$tmp" && mv "$tmp" "$SESSIONS_FILE"
     fi
 
@@ -82,4 +87,28 @@ registry_remove_session() {
     local tmp="${SESSIONS_FILE}.tmp"
     jq --arg name "$name" '[.[] | select(.name != $name)]' "$SESSIONS_FILE" > "$tmp" && mv "$tmp" "$SESSIONS_FILE"
     echo "Removed session '$name'"
+}
+
+# registry_set_field <name> <field> <string value>
+registry_set_field() {
+    local name="$1" field="$2" value="$3"
+    local tmp="${SESSIONS_FILE}.tmp"
+    jq --arg name "$name" --arg field "$field" --arg value "$value" \
+       'map(if .name == $name then .[$field] = $value else . end)' \
+       "$SESSIONS_FILE" > "$tmp" && mv "$tmp" "$SESSIONS_FILE"
+}
+
+# registry_conversation_id <name>
+# The Claude conversation this session resumes on every start. Minted and
+# saved on first use, so the session keeps one conversation for its lifetime.
+# (--continue can't do this: it takes the newest conversation in the
+# directory, and several sessions can share a directory.)
+registry_conversation_id() {
+    local name="$1" id
+    id=$(registry_get_field "$name" "conversation_id")
+    if [[ -z "$id" ]]; then
+        id=$(platform_uuid)
+        registry_set_field "$name" "conversation_id" "$id" || return 1
+    fi
+    printf '%s\n' "$id"
 }

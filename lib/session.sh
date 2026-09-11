@@ -30,14 +30,20 @@ session_start() {
 
     ensure_tmux_session
 
-    local type path host flags flags_fresh account wrapper_local wrapper_remote
+    local type path host flags account conv wrapper_local wrapper_remote
     type=$(registry_get_field "$name" "type")
     path=$(registry_get_field "$name" "path")
     host=$(registry_get_field "$name" "host")
     flags=$(registry_get_field "$name" "claude_flags")
     account=$(registry_get_field "$name" "account")
-    # Fallback flags with --continue stripped, for when no prior conversation exists
-    flags_fresh="${flags//--continue/}"
+    # Every start resumes the session's own pinned conversation; the first
+    # start (--resume finds nothing) creates it under that id instead.
+    # --continue would clash with --resume, so drop it from older registries.
+    conv=$(registry_conversation_id "$name") || {
+        echo "Error: could not save a conversation id for '$name'" >&2
+        return 1
+    }
+    flags="${flags//--continue/}"
     # Wrapper paths — local $HOME, and ~/.aios-claude on remote hosts (the
     # remote shell expands ~ to the remote user's home). Override the remote
     # path with AIOS_REMOTE_WRAPPER if your hosts install it elsewhere.
@@ -50,7 +56,7 @@ session_start() {
             # so the wrapper can export the right OAuth token. Empty account
             # falls through to Claude Code's own stored login.
             $TMUX_CMD new-window -t "$AIOS_TMUX_SESSION" -n "$name" \
-                "cd '${path}' && { AIOS_ACCOUNT='${account}' '${wrapper_local}' ${flags} || AIOS_ACCOUNT='${account}' '${wrapper_local}' ${flags_fresh}; }; bash"
+                "cd '${path}' && { AIOS_ACCOUNT='${account}' '${wrapper_local}' --resume ${conv} ${flags} || AIOS_ACCOUNT='${account}' '${wrapper_local}' --session-id ${conv} ${flags}; }; bash"
             ;;
         remote)
             # SSH to the host, reconnect to existing tmux session or create one.
@@ -58,7 +64,7 @@ session_start() {
             # AIOS_ACCOUNT and exports CLAUDE_CODE_OAUTH_TOKEN from the matching
             # ~/.aios-accounts/<name>.token file.
             $TMUX_CMD new-window -t "$AIOS_TMUX_SESSION" -n "$name" \
-                "ssh -t ${host} \"tmux has-session -t ${name} 2>/dev/null && tmux attach -t ${name} || tmux new-session -s ${name} -c '${path}' 'AIOS_ACCOUNT=${account} ${wrapper_remote} ${flags} || AIOS_ACCOUNT=${account} ${wrapper_remote} ${flags_fresh}; bash'\""
+                "ssh -t ${host} \"tmux has-session -t ${name} 2>/dev/null && tmux attach -t ${name} || tmux new-session -s ${name} -c '${path}' 'AIOS_ACCOUNT=${account} ${wrapper_remote} --resume ${conv} ${flags} || AIOS_ACCOUNT=${account} ${wrapper_remote} --session-id ${conv} ${flags}; bash'\""
             ;;
     esac
 
