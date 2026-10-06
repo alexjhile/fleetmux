@@ -96,7 +96,7 @@ _dash_session_effort() {
         return 0
     fi
     local pane
-    pane=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -10000 2>/dev/null) || return 0
+    pane=$(_dash_capture_panes "$name")
     # Most recent explicit /effort setting (a command response).
     local set_effort
     set_effort=$(echo "$pane" | grep -oE "[Ee]ffort (set to|to) (xhigh|high|medium|low)" | tail -1 | grep -oE "(xhigh|high|medium|low)$")
@@ -111,12 +111,66 @@ _dash_session_effort() {
         echo "$banner_effort"
         return 0
     fi
+    # Status line (Claude Code >= 2.1): "● high · /effort"
+    local line_effort
+    line_effort=$(echo "$pane" | grep -oE "(xhigh|high|medium|low) · /effort" | tail -1 | grep -oE "^(xhigh|high|medium|low)")
+    if [[ -n "$line_effort" ]]; then
+        echo "$line_effort"
+        return 0
+    fi
     # Fallback: settings.json
     local cfg_effort
     cfg_effort=$(jq -r '.effortLevel // ""' "$HOME/.claude/settings.json" 2>/dev/null)
     if [[ -n "$cfg_effort" ]]; then
         echo "$cfg_effort*"
     fi
+}
+
+# Capture the scrollback of every pane in a session's window.
+# homebase keeps Claude in pane 1 (the dashboard owns pane 0), so capturing
+# only the active pane missed it.
+_dash_capture_panes() {
+    local name="$1" idx out=""
+    while IFS= read -r idx; do
+        [[ -z "$idx" ]] && continue
+        out+=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}.${idx}" -p -S -10000 2>/dev/null)
+        out+=$'\n'
+    done < <($TMUX_CMD list-panes -t "${FLEETMUX_TMUX_SESSION}:${name}" -F '#{pane_index}' 2>/dev/null)
+    printf '%s' "$out"
+}
+
+# Model recorded in the session's pinned conversation log. tmux scrollback is
+# capped (2000 lines by default), so a busy session has long since scrolled its
+# startup banner away; the log always carries the last turn's model.
+_dash_session_model_log() {
+    local name="$1" path conv slug dir file model ver
+    path=$(registry_get_field "$name" "path")
+    conv=$(registry_get_field "$name" "conversation_id")
+    [[ -z "$path" ]] && return 0
+    slug=$(printf '%s' "$path" | sed 's|[/_.]|-|g')
+    dir="${CLAUDE_CODE_PROJECTS:-$HOME/.claude/projects}/${slug}"
+    [[ -d "$dir" ]] || return 0
+    file="${dir}/${conv}.jsonl"
+    if [[ -z "$conv" || ! -f "$file" ]]; then
+        # shellcheck disable=SC2012  # BSD find has no -printf; ls -t is portable here
+        file=$(ls -t "${dir}"/*.jsonl 2>/dev/null | head -1)
+    fi
+    [[ -n "$file" && -f "$file" ]] || return 0
+    # Skip sidechain (subagent) turns — they can run a different model.
+    model=$(tail -200 "$file" 2>/dev/null \
+        | jq -r 'select((.isSidechain // false) | not) | .message.model? // empty' 2>/dev/null \
+        | grep -v '^<' | tail -1)
+    [[ -z "$model" ]] && return 0
+    case "$model" in
+        claude-opus-*)   ver="${model#claude-opus-}";   model="Opus" ;;
+        claude-sonnet-*) ver="${model#claude-sonnet-}"; model="Sonnet" ;;
+        claude-haiku-*)  ver="${model#claude-haiku-}";  model="Haiku" ;;
+        *) return 0 ;;
+    esac
+    ver="${ver%%[*}"                                  # drop a [1m] context tag
+    ver="${ver%%-2[0-9][0-9][0-9][0-9][0-9][0-9][0-9]}"  # drop a trailing date
+    ver=$(printf '%s' "$ver" | tr '-' '.')
+    printf '%s %s\n' "$model" "$ver"
 }
 
 # Extract live model from a session's tmux pane.
@@ -129,21 +183,27 @@ _dash_session_model() {
     if ! tmux_window_exists "$name"; then
         return 0
     fi
-    # Look 10000 lines back — long-running sessions push the banner far up.
+    # The conversation log is authoritative; the pane is only a fallback.
+    local from_log
+    from_log=$(_dash_session_model_log "$name")
+    if [[ -n "$from_log" ]]; then
+        echo "$from_log"
+        return 0
+    fi
     local pane
-    pane=$($TMUX_CMD capture-pane -t "${FLEETMUX_TMUX_SESSION}:${name}" -p -S -10000 2>/dev/null) || return 0
+    pane=$(_dash_capture_panes "$name")
     # Most recent explicit /model setting wins.
     local set_model
-    set_model=$(echo "$pane" | grep -oE "Set model to (Opus|Sonnet|Haiku)[ -][0-9]+\.[0-9]+" | tail -1 | sed -E 's/Set model to //')
+    set_model=$(echo "$pane" | grep -oE "Set model to (Opus|Sonnet|Haiku)[ -][0-9]+(\.[0-9]+)?" | tail -1 | sed -E 's/Set model to //')
     if [[ -n "$set_model" ]]; then
         echo "$set_model"
         return 0
     fi
     # Startup banner search.
     local banner
-    banner=$(echo "$pane" | grep -iE "effort|Claude Code v" | tail -5)
+    banner=$(echo "$pane" | grep -iE "effort|Claude Code v|Claude Max|Claude Pro" | tail -5)
     local model
-    model=$(echo "$banner" | grep -oE "(Opus|Sonnet|Haiku)[ -]+[0-9]+\.[0-9]+" | tail -1)
+    model=$(echo "$banner" | grep -oE "(Opus|Sonnet|Haiku)[ -]+[0-9]+(\.[0-9]+)?" | tail -1)
     if [[ -n "$model" ]]; then
         echo "$model"
         return 0
