@@ -41,6 +41,7 @@ If you run more than two or three Claude Code sessions, you lose the plot fast: 
 - `bash` (3.2+ — macOS stock bash works), `tmux`, `ssh`, `jq`, `git`
 - [Claude Code](https://www.anthropic.com/claude-code) installed (`claude` on `PATH`) **and authenticated** — run `claude` once and sign in before pointing fleetmux at it (on Windows: inside WSL)
 - Optional: `glab`/`gh` for issue-queue probing, `npx`/`tsx` for the AFK harness, `shellcheck` + `bats` for development; Node 20.11+ for the web GUI
+- Short on any of those? `./setup.sh --install-deps` installs them (asks before `sudo`)
 
 ## Quickest start: one command
 
@@ -50,7 +51,9 @@ cd fleetmux
 ./setup.sh
 ```
 
-`setup.sh` checks prerequisites, links the CLI onto your PATH, seeds `sessions.json`, registers a `homebase` controller session, builds the web GUI, starts it on **http://localhost:9035**, and opens it in your browser. Safe to re-run.
+`setup.sh` checks prerequisites, links the CLI onto your PATH, seeds `sessions.json` with a `homebase` controller session, links `tmux.conf` into `~/.tmux.conf` (50k scrollback, mouse select, clipboard), builds the web GUI, starts it on **http://localhost:9035**, enables it at login/boot, and opens your browser. Safe to re-run.
+
+Add `--install-deps` to install the prerequisites too (tmux, jq, git, curl, a C++ toolchain, Node LTS via nvm, and Claude Code). It asks before anything needing `sudo`; `--yes` skips the prompts. Signing in to Claude Code (`claude`, once) stays manual.
 
 **On Windows**, run it inside WSL2. It also installs a `fleetmux` command for PowerShell/cmd and a "fleetmux" Windows Terminal profile. See [WINDOWS.md](WINDOWS.md).
 
@@ -69,9 +72,11 @@ ln -s "$PWD/fleetmux" ~/bin/fleetmux
 echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 
 # Create your session registry from the template:
-cp sessions.example.json sessions.json
+# Start with an empty registry (sessions.example.json is a field reference):
+echo '[]' > sessions.json
+fleetmux add homebase local "$PWD" "Fleet controller — reads HOMEBASE.md"
 
-fleetmux list   # should print the three example sessions
+fleetmux list   # should print the homebase session
 ```
 
 For the GUI: `cd gui && npm install && (cd server && npm install) && npm start` → http://localhost:9035.
@@ -131,6 +136,7 @@ To set it up, make **[`HOMEBASE.md`](HOMEBASE.md)** the `CLAUDE.md` of that sess
 - **`fleetmux dash`** — dock a compact status pane in your current tmux window; **`fleetmux dash keys`** installs `prefix+a` (toggle dash) and `prefix+g` (session picker).
 - **`fleetmux.command`** — double-click in Finder (macOS), or open the "fleetmux" Windows Terminal profile (Windows), to open Claude Code + the dashboard in one move. Re-running reattaches.
 - **Web GUI** — see [`gui/`](gui/): a browser/desktop dashboard on `localhost:9035` with live terminals, usage charts, and health.
+- **`fleetmux gui`** — `status`, `start`, `stop`, `restart` for that server, and `fleetmux gui autostart [enable|disable|status]` to bring it up at login/boot (a systemd user unit on Linux/WSL, a LaunchAgent on macOS). `setup.sh` enables it; the homebase launcher also starts it if it is down.
 
 ## Configuration
 
@@ -191,7 +197,7 @@ WINDOWS.md            running fleetmux on Windows via WSL2
 lib/                  command modules (one concern each)
 bin/                  launch wrapper + usage/limits helpers
 test/                 bats suite
-sessions.example.json template registry — copy to sessions.json
+sessions.example.json reference registry — field shapes for local/remote sessions
 gui/                  optional web + desktop dashboard (React/Express/Tauri)
 afk-workflow/         the AFK workflow docs + .sandcastle/ harness template
 ```

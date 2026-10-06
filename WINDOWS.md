@@ -26,6 +26,7 @@ Reboot when asked, then open "Ubuntu" from the Start menu and create your Linux 
 ## 2. Install the prerequisites *inside* Ubuntu
 
 ```bash
+# Or skip this whole section: ./setup.sh --install-deps does it (asking first).
 sudo apt-get update
 sudo apt-get install -y tmux jq git curl build-essential python3
 
@@ -54,6 +55,8 @@ Under WSL, `setup.sh` does the usual setup (CLI on PATH, `sessions.json`, GUI bu
 
 - **writes `fleetmux.cmd`** into `%USERPROFILE%\.local\bin` if that folder is on your Windows PATH, and into `%USERPROFILE%\bin` otherwise (it prints how to add it to PATH). Override the location with `FLEETMUX_WIN_BIN`. After that, `fleetmux list` works straight from PowerShell.
 - **adds a "fleetmux" Windows Terminal profile.** Pick it from the tab dropdown to get Claude Code with the dashboard docked. This is the Windows equivalent of double-clicking `fleetmux.command` on macOS.
+- **starts the dashboard at boot.** It installs a systemd *user* unit (`fleetmux-gui`) and turns on user lingering, so `localhost:9035` comes back by itself after a Windows restart. This needs systemd inside WSL (`[boot] systemd=true` in `/etc/wsl.conf`, then `wsl --shutdown`); without it, opening homebase starts the dashboard instead. Check with `fleetmux gui status`.
+- **links `tmux.conf` to `~/.tmux.conf`** (50k scrollback, mouse select, OSC 52 clipboard), unless you already have one — then it prints the `source-file` line to add.
 - **puts a "fleetmux homebase" shortcut on your desktop.** It opens the same thing: the `homebase` controller session with the dashboard, in Windows Terminal if it's installed. If homebase is already running, it reattaches instead of starting a second copy.
 
 ## 4. Daily use

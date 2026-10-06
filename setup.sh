@@ -11,8 +11,12 @@
 # WSL distro (see WINDOWS.md). Under WSL it also installs a `fleetmux` command
 # for PowerShell/cmd and a "fleetmux" Windows Terminal profile.
 #
-# Prereqs it can't install for you: Claude Code (authenticated), tmux, jq, git,
-# and Node/npm (for the GUI). It checks and tells you what's missing.
+# Prerequisites (tmux, jq, git, curl, a C++ toolchain, Node 20.11+ and Claude
+# Code) are checked by default and the missing ones are listed. Pass
+# --install-deps to install them instead; it asks before any sudo, or add
+# --yes to skip the prompt. Signing in to Claude Code stays manual.
+#
+#   ./setup.sh --install-deps [--yes]
 
 set -eo pipefail
 
@@ -27,6 +31,101 @@ ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
 
 IS_MAC=0; [ "$(uname -s)" = "Darwin" ] && IS_MAC=1
 IS_WSL=0; platform_is_wsl && IS_WSL=1
+
+INSTALL_DEPS=0
+ASSUME_YES=0
+for arg in "$@"; do
+  case "$arg" in
+    --install-deps) INSTALL_DEPS=1 ;;
+    --yes|-y)       ASSUME_YES=1 ;;
+    -h|--help)
+      sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
+    *) warn "unknown option: $arg (try --help)"; exit 1 ;;
+  esac
+done
+
+# Ask before anything that needs sudo or rewrites a toolchain. --yes skips it;
+# a non-interactive run without --yes declines rather than hanging.
+confirm() {
+  [ "$ASSUME_YES" -eq 1 ] && return 0
+  if [ ! -t 0 ]; then
+    warn "not a terminal and no --yes — skipping: $1"
+    return 1
+  fi
+  printf '\033[33m?  %s [y/N] \033[0m' "$1"
+  local reply=""
+  read -r reply || true
+  case "$reply" in [yY]|[yY][eE][sS]) return 0 ;; *) return 1 ;; esac
+}
+
+# ── 0. Install prerequisites (--install-deps) ───────────────────────────────
+install_deps() {
+  say "Installing prerequisites"
+  local pkgs="tmux jq git curl"
+  [ "$IS_MAC" -eq 0 ] && pkgs="$pkgs build-essential python3"
+
+  if [ "$IS_MAC" -eq 1 ]; then
+    if command -v brew >/dev/null 2>&1; then
+      # shellcheck disable=SC2086  # word splitting is what brew wants here
+      brew install $pkgs || warn "brew install failed — install manually: $pkgs"
+    else
+      warn "Homebrew not found — install it from https://brew.sh, then: brew install $pkgs"
+    fi
+  elif command -v apt-get >/dev/null 2>&1; then
+    if confirm "Run: sudo apt-get update && sudo apt-get install -y $pkgs ?"; then
+      sudo apt-get update
+      # shellcheck disable=SC2086
+      sudo apt-get install -y $pkgs || warn "apt-get install failed — install manually: $pkgs"
+    else
+      warn "skipped apt packages — install manually: sudo apt-get install -y $pkgs"
+    fi
+  else
+    warn "no apt-get or brew — install these yourself: $pkgs"
+  fi
+
+  # Node 20.11+ for the GUI. nvm is per-user, so this needs no sudo.
+  local need_node=1
+  if command -v node >/dev/null 2>&1; then
+    local v maj rest min
+    v=$(node -p 'process.versions.node' 2>/dev/null || echo 0)
+    maj=${v%%.*}; rest=${v#*.}; min=${rest%%.*}
+    if [ "$maj" -gt 20 ] || { [ "$maj" -eq 20 ] && [ "$min" -ge 11 ]; }; then
+      need_node=0
+      ok "Node $v already satisfies the GUI (20.11+)"
+    fi
+  fi
+  if [ "$need_node" -eq 1 ]; then
+    if [ -s "$HOME/.nvm/nvm.sh" ] || confirm "Install nvm + Node LTS into \$HOME/.nvm (no sudo)?"; then
+      if [ ! -s "$HOME/.nvm/nvm.sh" ]; then
+        curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash \
+          || warn "nvm install failed — install Node 20.11+ yourself"
+      fi
+      if [ -s "$HOME/.nvm/nvm.sh" ]; then
+        export NVM_DIR="$HOME/.nvm"
+        # shellcheck disable=SC1091
+        . "$NVM_DIR/nvm.sh"
+        nvm install --lts >/dev/null 2>&1 && ok "Node $(node -p 'process.versions.node') installed via nvm" \
+          || warn "nvm couldn't install Node LTS — do it manually: nvm install --lts"
+      fi
+    else
+      warn "skipped Node — the GUI needs 20.11+"
+    fi
+  fi
+
+  # Claude Code itself — the thing every session runs.
+  if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
+    ok "Claude Code already installed"
+  elif confirm "Install Claude Code (curl -fsSL https://claude.ai/install.sh | bash)?"; then
+    curl -fsSL https://claude.ai/install.sh | bash || warn "Claude Code install failed — see https://claude.ai/install.sh"
+    [ -x "$HOME/.local/bin/claude" ] && ok "Claude Code installed at ~/.local/bin/claude"
+  else
+    warn "skipped Claude Code — fleetmux can't launch sessions without it"
+  fi
+  warn "Sign in once before using fleetmux: run 'claude' and follow the prompts"
+}
+
+[ "$INSTALL_DEPS" -eq 1 ] && install_deps
 
 # ── 1. Prerequisites ─────────────────────────────────────────────────────────
 say "Checking prerequisites"
@@ -45,6 +144,7 @@ if [ -n "$core_missing" ]; then
   echo "   Claude Code: curl -fsSL https://claude.ai/install.sh | bash"
   echo "   (then run 'claude' once and sign in so fleetmux can launch sessions)."
   [ "$IS_WSL" -eq 1 ] && echo "   Under WSL, install Claude Code *inside* the distro — the Windows claude.exe can't drive tmux sessions."
+  echo "   Or let setup do it: ./setup.sh --install-deps"
   exit 1
 fi
 ok "core tools present"
@@ -251,12 +351,38 @@ fi
 
 # ── 3. Session registry + homebase controller ───────────────────────────────
 say "Seeding sessions.json"
-[ -f sessions.json ] || cp sessions.example.json sessions.json
+# A fresh registry starts empty and gets only the homebase controller; the
+# example file stays as a reference for the local/remote field shapes.
+[ -f sessions.json ] || echo '[]' > sessions.json
 if jq -e '.[] | select(.name=="homebase")' sessions.json >/dev/null 2>&1; then
   ok "homebase controller session already registered"
 else
   "$REPO_DIR/fleetmux" add homebase local "$REPO_DIR" "Fleet controller — reads HOMEBASE.md" >/dev/null
   ok "registered 'homebase' controller session"
+fi
+
+# ── 3b. tmux config ─────────────────────────────────────────────────────────
+# 50k scrollback (tmux defaults to 2000, which loses session banners and makes
+# the dashboard's model/effort detection blind), mouse select and OSC 52 copy.
+say "Installing tmux config"
+if [ -L "$HOME/.tmux.conf" ] && [ "$(readlink "$HOME/.tmux.conf")" = "$REPO_DIR/tmux.conf" ]; then
+  ok "~/.tmux.conf -> $REPO_DIR/tmux.conf (already linked)"
+elif [ -e "$HOME/.tmux.conf" ]; then
+  if grep -qF "$REPO_DIR/tmux.conf" "$HOME/.tmux.conf" 2>/dev/null; then
+    ok "~/.tmux.conf already sources $REPO_DIR/tmux.conf"
+  else
+    warn "you already have ~/.tmux.conf — left untouched. To get fleetmux's settings, add:"
+    echo "   source-file $REPO_DIR/tmux.conf"
+  fi
+else
+  ln -s "$REPO_DIR/tmux.conf" "$HOME/.tmux.conf"
+  ok "~/.tmux.conf -> $REPO_DIR/tmux.conf"
+fi
+# A tmux server that is already running won't reread the file on its own.
+if tmux info >/dev/null 2>&1; then
+  tmux source-file "$HOME/.tmux.conf" 2>/dev/null \
+    && ok "reloaded tmux config in the running server" \
+    || warn "couldn't reload the running tmux server — new windows pick it up anyway"
 fi
 
 # ── 4. GUI: install + build ──────────────────────────────────────────────────
@@ -288,26 +414,14 @@ if [ "$have_npm" -eq 1 ]; then
 
   # ── 5. Start server + open browser ─────────────────────────────────────────
   say "Starting the GUI server on http://localhost:9035"
-  if curl -sf "http://localhost:9035" >/dev/null 2>&1; then
-    ok "a server is already listening on :9035"
-  else
-    # setsid (Linux) gives the server its own session, so it outlives the
-    # terminal that ran setup: WSL kills whatever is left of a wsl.exe
-    # session when that session ends. macOS has no setsid; nohup suffices.
-    # Detach every stdio of the whole subtree too: anything left holding
-    # setup's stdout would keep `./setup.sh | tee log` waiting forever.
-    setsid_bin=$(command -v setsid || true)
-    ( cd gui/server && FLEETMUX_DIR="$REPO_DIR" ${setsid_bin:+"$setsid_bin"} nohup npx tsx index.ts >"$REPO_DIR/gui/server.log" 2>&1 </dev/null & ) >/dev/null 2>&1 </dev/null
-    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-      curl -sf "http://localhost:9035" >/dev/null 2>&1 && break
-      sleep 0.5
-    done
-    if curl -sf "http://localhost:9035" >/dev/null 2>&1; then
-      ok "server up (log: gui/server.log — stop with: pkill -f 'tsx index.ts')"
-    else
-      warn "server didn't answer yet — check gui/server.log; start manually with: cd gui && npm start"
-    fi
-  fi
+  # lib/gui.sh owns the spawn (detached via setsid+nohup so it outlives the
+  # terminal that ran setup) and the login/boot autostart unit.
+  # shellcheck source=lib/gui.sh
+  source "$REPO_DIR/lib/gui.sh"
+  gui_start || warn "check gui/server.log; start manually with: fleetmux gui start"
+
+  say "Enabling GUI autostart at login/boot"
+  gui_autostart_enable || warn "autostart not enabled — 'fleetmux gui start' still works"
 
   say "Opening the dashboard in your browser"
   open_url "http://localhost:9035"
