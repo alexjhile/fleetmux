@@ -1,7 +1,7 @@
 .PHONY: lint test check
 
 lint:
-	shellcheck -x fleetmux lib/*.sh
+	shellcheck -x fleetmux setup.sh fleetmux.command lib/*.sh
 
 test:
 	bats test/*.bats

@@ -105,8 +105,11 @@ install_deps() {
         export NVM_DIR="$HOME/.nvm"
         # shellcheck disable=SC1091
         . "$NVM_DIR/nvm.sh"
-        nvm install --lts >/dev/null 2>&1 && ok "Node $(node -p 'process.versions.node') installed via nvm" \
-          || warn "nvm couldn't install Node LTS — do it manually: nvm install --lts"
+        if nvm install --lts >/dev/null 2>&1; then
+          ok "Node $(node -p 'process.versions.node') installed via nvm"
+        else
+          warn "nvm couldn't install Node LTS — do it manually: nvm install --lts"
+        fi
       fi
     else
       warn "skipped Node — the GUI needs 20.11+"
@@ -365,6 +368,7 @@ fi
 # 50k scrollback (tmux defaults to 2000, which loses session banners and makes
 # the dashboard's model/effort detection blind), mouse select and OSC 52 copy.
 say "Installing tmux config"
+# shellcheck disable=SC2088  # the ~ below is prose in messages, not a path
 if [ -L "$HOME/.tmux.conf" ] && [ "$(readlink "$HOME/.tmux.conf")" = "$REPO_DIR/tmux.conf" ]; then
   ok "~/.tmux.conf -> $REPO_DIR/tmux.conf (already linked)"
 elif [ -e "$HOME/.tmux.conf" ]; then
@@ -380,9 +384,11 @@ else
 fi
 # A tmux server that is already running won't reread the file on its own.
 if tmux info >/dev/null 2>&1; then
-  tmux source-file "$HOME/.tmux.conf" 2>/dev/null \
-    && ok "reloaded tmux config in the running server" \
-    || warn "couldn't reload the running tmux server — new windows pick it up anyway"
+  if tmux source-file "$HOME/.tmux.conf" 2>/dev/null; then
+    ok "reloaded tmux config in the running server"
+  else
+    warn "couldn't reload the running tmux server — new windows pick it up anyway"
+  fi
 fi
 
 # ── 4. GUI: install + build ──────────────────────────────────────────────────
