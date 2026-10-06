@@ -13,6 +13,18 @@ fleetmux is built on `tmux`, and tmux doesn't run natively on Windows. So on Win
 
 Everything runs inside WSL: the CLI, tmux, Claude Code, and the GUI server. The Windows side only has a thin `fleetmux.cmd` shim, a Windows Terminal profile, and your browser.
 
+## 0. One-paste bootstrap (does sections 1-3 for you)
+
+In an **administrator** PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/alexjhile/fleetmux/main/bootstrap-windows.ps1 | iex
+```
+
+`bootstrap-windows.ps1` installs WSL2 + Ubuntu if missing (Windows reboots once; open Ubuntu afterwards to create your Linux user, then re-run the same line), then installs the prerequisites inside the distro, clones fleetmux to `~/fleetmux` and runs `./setup.sh --install-deps --yes`. `sudo` asks for your Linux password once. Every step is skipped if already done, so re-running is safe.
+
+Prefer to do it by hand, or not on a fresh machine? Sections 1-3 are the manual equivalent.
+
 ## 1. Install WSL2 + Ubuntu (one time, needs admin + reboot)
 
 In an **admin** PowerShell:

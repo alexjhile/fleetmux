@@ -55,7 +55,13 @@ cd fleetmux
 
 Add `--install-deps` to install the prerequisites too (tmux, jq, git, curl, a C++ toolchain, Node LTS via nvm, and Claude Code). It asks before anything needing `sudo`; `--yes` skips the prompts. Signing in to Claude Code (`claude`, once) stays manual.
 
-**On Windows**, run it inside WSL2. It also installs a `fleetmux` command for PowerShell/cmd and a "fleetmux" Windows Terminal profile. See [WINDOWS.md](WINDOWS.md).
+**On Windows there is a one-paste bootstrap.** In an **administrator** PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/alexjhile/fleetmux/main/bootstrap-windows.ps1 | iex
+```
+
+It installs WSL2 + Ubuntu (one reboot the first time), then inside the distro installs every prerequisite, clones fleetmux and runs `setup.sh` — ending with the desktop icon, the dashboard on :9035, and a `fleetmux` command in PowerShell. Re-running it is safe. Only two things stay manual, both Claude Code's own security gates: signing in (`claude`) and answering "trust this folder". Details in [WINDOWS.md](WINDOWS.md).
 
 > **Hand it to Claude Code:** open Claude Code in the cloned repo and say *"read README.md, then run ./setup.sh."* With permissions granted it'll do the whole bootstrap — provided the prerequisites below are already installed and you're signed in to Claude Code.
 
