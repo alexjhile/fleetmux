@@ -88,3 +88,7 @@ print_success() {
 print_info() {
     printf "${C_CYAN}%s${C_RESET}\n" "$1"
 }
+
+print_warning() {
+    printf "${C_YELLOW}%s${C_RESET}\n" "$1" >&2
+}

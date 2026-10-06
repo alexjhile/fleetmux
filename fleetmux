@@ -37,6 +37,7 @@ source "${SCRIPT_DIR}/lib/usage.sh"
 source "${SCRIPT_DIR}/lib/limits.sh"
 source "${SCRIPT_DIR}/lib/model-guard.sh"
 source "${SCRIPT_DIR}/lib/afk.sh"
+source "${SCRIPT_DIR}/lib/gui.sh"
 
 # ─── Commands ───────────────────────────────────────────────────────────────
 
@@ -689,6 +690,12 @@ Dashboard:
   dash toggle                 Toggle the dashboard pane on/off
   dash keys                   Install tmux keybindings (prefix+g, prefix+a)
 
+GUI
+  gui                         Web dashboard status (same as 'gui status')
+  gui start | stop | restart  Run the dashboard server on http://localhost:9035
+  gui autostart [enable|disable|status]
+                              Bring the dashboard up at login/boot
+
 Brain (persistent memory backup):
   brain sync                  Sync all memory files into brain/
   brain commit                Sync + commit to git
@@ -770,6 +777,21 @@ main() {
             ;;
         account)
             cmd_account "$@"
+            ;;
+        gui)
+            case "${1:-status}" in
+                start)     gui_start ;;
+                stop)      gui_stop ;;
+                restart)   gui_restart ;;
+                status)    gui_status ;;
+                autostart) case "${2:-enable}" in
+                               enable)  gui_autostart_enable ;;
+                               disable) gui_autostart_disable ;;
+                               status)  gui_autostart_status ;;
+                               *) print_error "Usage: fleetmux gui autostart [enable|disable|status]"; exit 1 ;;
+                           esac ;;
+                *)         print_error "Usage: fleetmux gui [start|stop|restart|status|autostart]"; exit 1 ;;
+            esac
             ;;
         usage)
             cmd_usage "$@"
