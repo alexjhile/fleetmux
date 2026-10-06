@@ -36,8 +36,12 @@ else
   CLAUDE_RUN="$CLAUDE_BIN --continue $CLAUDE_FLAGS || $CLAUDE_BIN $CLAUDE_FLAGS"
 fi
 
+# Bring the web dashboard up as well — a no-op when it is already answering.
+# Runs in its own shell so this launcher keeps working if the GUI can't start.
+bash -c 'source "$1/lib/gui.sh" && gui_ensure' _ "$REPO_DIR" >/dev/null 2>&1 || true
+
 launch_window() {
-  tmux new-window -t "$TMUX_SESSION" -n "$WINDOW_NAME" \
+  tmux new-window -t "${TMUX_SESSION}:" -n "$WINDOW_NAME" \
     "cd '$WORKDIR' && { $CLAUDE_RUN; }; bash"
 }
 

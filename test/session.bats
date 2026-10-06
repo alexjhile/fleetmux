@@ -54,3 +54,10 @@ teardown() {
     id=$(registry_get_field "testremote" "conversation_id")
     grep -q -- "--resume ${id} .*--session-id ${id}" "$TMUX_CALLS"
 }
+
+@test "session_start targets the tmux session, not a same-named window" {
+    # With no colon, tmux resolves "-t fleetmux" to a *window* named fleetmux
+    # first, so new-window would try to reuse that window's index.
+    session_start "testlocal"
+    grep -q -- "new-window -t ${FLEETMUX_TMUX_SESSION}: -n testlocal" "$TMUX_CALLS"
+}

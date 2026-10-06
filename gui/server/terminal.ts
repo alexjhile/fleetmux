@@ -59,7 +59,7 @@ function ensureTmuxWindow(sessionName: string): void {
     console.log(`[terminal] creating tmux window '${sessionName}' at ${cwd}`)
     try {
       execSync(
-        `${TMUX_BIN} -S "${TMUX_SOCKET}" new-window -t fleetmux -n "${sessionName}" -c "${cwd}" ${SHELL_BIN}`,
+        `${TMUX_BIN} -S "${TMUX_SOCKET}" new-window -t fleetmux: -n "${sessionName}" -c "${cwd}" ${SHELL_BIN}`,
         { env: PTY_ENV },
       )
     } catch (e) {

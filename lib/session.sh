@@ -55,7 +55,7 @@ session_start() {
             # Launch claude via ~/.fleetmux-claude wrapper with FLEETMUX_ACCOUNT set
             # so the wrapper can export the right OAuth token. Empty account
             # falls through to Claude Code's own stored login.
-            $TMUX_CMD new-window -t "$FLEETMUX_TMUX_SESSION" -n "$name" \
+            $TMUX_CMD new-window -t "${FLEETMUX_TMUX_SESSION}:" -n "$name" \
                 "cd '${path}' && { FLEETMUX_ACCOUNT='${account}' '${wrapper_local}' --resume ${conv} ${flags} || FLEETMUX_ACCOUNT='${account}' '${wrapper_local}' --session-id ${conv} ${flags}; }; bash"
             ;;
         remote)
@@ -63,7 +63,7 @@ session_start() {
             # Launches claude via the ~/.fleetmux-claude wrapper which reads
             # FLEETMUX_ACCOUNT and exports CLAUDE_CODE_OAUTH_TOKEN from the matching
             # ~/.fleetmux-accounts/<name>.token file.
-            $TMUX_CMD new-window -t "$FLEETMUX_TMUX_SESSION" -n "$name" \
+            $TMUX_CMD new-window -t "${FLEETMUX_TMUX_SESSION}:" -n "$name" \
                 "ssh -t ${host} \"tmux has-session -t ${name} 2>/dev/null && tmux attach -t ${name} || tmux new-session -s ${name} -c '${path}' 'FLEETMUX_ACCOUNT=${account} ${wrapper_remote} --resume ${conv} ${flags} || FLEETMUX_ACCOUNT=${account} ${wrapper_remote} --session-id ${conv} ${flags}; bash'\""
             ;;
     esac
