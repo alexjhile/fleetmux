@@ -142,6 +142,10 @@ _dash_capture_panes() {
 # Model recorded in the session's pinned conversation log. tmux scrollback is
 # capped (2000 lines by default), so a busy session has long since scrolled its
 # startup banner away; the log always carries the last turn's model.
+#
+# A /model switch is logged too, as a local-command entry, and takes effect
+# before any turn runs on the new model — so the newest of the two wins.
+# Otherwise the panel keeps showing the old model until the next reply lands.
 _dash_session_model_log() {
     local name="$1" path conv slug dir file model ver
     path=$(registry_get_field "$name" "path")
@@ -156,11 +160,29 @@ _dash_session_model_log() {
         file=$(ls -t "${dir}"/*.jsonl 2>/dev/null | head -1)
     fi
     [[ -n "$file" && -f "$file" ]] || return 0
-    # Skip sidechain (subagent) turns — they can run a different model.
-    model=$(tail -200 "$file" 2>/dev/null \
-        | jq -r 'select((.isSidechain // false) | not) | .message.model? // empty' 2>/dev/null \
-        | grep -v '^<' | tail -1)
+    # Emit, in log order, "id:<model-id>" for each main-thread turn and
+    # "label:<Name>" for each /model switch, then keep the last. Sidechain
+    # (subagent) turns are skipped — they can run a different model. A switch
+    # is recognised only as a user entry whose content is a *string* starting
+    # with the local-command tag; tool results that merely quote that text
+    # carry array content and must not count.
+    model=$(tail -200 "$file" 2>/dev/null | jq -r '
+        select((.isSidechain // false) | not)
+        | if ((.message.model? // "") | (. != "" and (startswith("<") | not)))
+          then "id:" + .message.model
+          elif (.type == "user" and ((.message.content? | type) == "string")
+                and (.message.content | startswith("<local-command-stdout>Set model to `")))
+          then "label:" + (.message.content | capture("Set model to `(?<m>[^`]+)`").m)
+          else empty end' 2>/dev/null | tail -1)
     [[ -z "$model" ]] && return 0
+    if [[ "$model" == label:* ]]; then
+        model="${model#label:}"
+        case "$model" in
+            Opus*|Sonnet*|Haiku*) printf '%s\n' "$model" ;;
+        esac
+        return 0
+    fi
+    model="${model#id:}"
     case "$model" in
         claude-opus-*)   ver="${model#claude-opus-}";   model="Opus" ;;
         claude-sonnet-*) ver="${model#claude-sonnet-}"; model="Sonnet" ;;
@@ -371,7 +393,7 @@ dash_start() {
 
     # Split: new pane at top, 30% height
     local pane_id
-    pane_id=$($TMUX_CMD split-window -b -v -l 30% -P -F "#{pane_id}" \
+    pane_id=$($TMUX_CMD split-window -b -v -l 25% -P -F "#{pane_id}" \
         "exec bash -c 'source \"${FLEETMUX_DIR}/lib/dashboard.sh\" && dash_status_loop 30'")
 
     printf '%s' "$pane_id" > "$DASH_PANE_FILE"
